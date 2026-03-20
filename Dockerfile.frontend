@@ -1,0 +1,21 @@
+# Capa base ligera de Python
+FROM python:3.12-slim
+
+# Directorio de trabajo
+WORKDIR /app
+
+# Copiar requerimientos e instalar
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar código
+COPY . .
+
+# Exponer puerto predeterminado de Streamlit
+EXPOSE 8501
+
+# Salud del contenedor
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+
+# Comando para arrancar Streamlit
+CMD ["streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
