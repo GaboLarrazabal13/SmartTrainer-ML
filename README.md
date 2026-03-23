@@ -13,6 +13,7 @@
 - **Inferencia Probalística**: No solo detecta si hay riesgo, sino que calcula un **% de probabilidad** exacto (XGBoost).
 - **Motor de Reglas Dinámico**: Identifica sobrecarga local en zonas anatómicas (Lumbar, Rodillas, Hombros, etc.) basándose en el volumen real de la sesión.
 - **Dashboard Interactivo**: Interfaz moderna en **Streamlit** (Dark Mode) con indicadores de riesgo, métricas de volumen y gráficos de impacto anatómico.
+- **Investigación Transparente**: Incluye un **Jupyter Notebook** detallado con el EDA, limpieza de datos y justificación científica de cada variable.
 - **Backend Robusto**: API desarrollada con **FastAPI** y validación de tipos vía Pydantic.
 
 ---
@@ -23,6 +24,7 @@
 - `data/`: Generador de bases de datos relacionales y catálogos de ejercicios.
 - `models/`: Scripts de entrenamiento, preprocesamiento y modelos serializados (.pkl).
 - `frontend/`: Aplicación visual en Streamlit.
+- `notebooks/`: Investigaciones de Ciencia de Datos y visualizaciones (SHAP).
 - `mlruns/`: Trazabilidad de experimentos mediante MLflow.
 
 ---
