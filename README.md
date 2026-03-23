@@ -33,10 +33,12 @@
    ```bash
    pip install -r requirements.txt
    ```
+
 2. **Generar la Base de Datos** (opcional):
    ```bash
    python data/dataset_generator.py
    ```
+
 3. **Entrenar el Modelo**:
    ```bash
    python models/train.py
@@ -52,6 +54,7 @@ Para disfrutar de la experiencia completa, inicia ambos servicios:
 ```bash
 uvicorn api.main:app --reload
 ```
+
 Acceso a la documentación interactiva: `http://localhost:8000/docs`
 
 ### 2. Iniciar el Dashboard (Interfaz)
@@ -109,6 +112,22 @@ El modelo tiene en cuenta:
 - **Edad y Peso**: Proporcionalidad de las cargas.
 - **Nivel de Experiencia**: Capacidad de recuperación adaptativa.
 - **Regla del Doble Impacto**: Si una zona anatómica recibe 2 o más ejercicios intensos, se dispara una alerta de recuperación forzada (48h-72h).
+
+---
+
+## 🔬 Origen e Investigación (NotebookLM)
+
+Este proyecto no es solo una herramienta de código, sino el resultado de una investigación exhaustiva basada en **Ciencia del Deporte y Fisiología del Ejercicio**.
+
+El proceso de desarrollo siguió esta metodología:
+1.  **Ingesta de Evidencia**: Se utilizó **NotebookLM** para procesar y sintetizar múltiples fuentes científicas sobre fatiga del Sistema Nervioso Central (SNC), sobrecarga progresiva y prevención de lesiones biomecánicas.
+2.  **Extracción de Reglas**: De esta investigación se derivaron las constantes y multiplicadores utilizados en el simulador (`dataset_generator.py`), como la "Regla del Doble Impacto" por zona anatómica.
+3.  **Simulación de Datos**: Creamos un "Gemelo Digital" que recrea la respuesta fisiológica humana ante diferentes intensidades y descansos.
+4.  **Entrenamiento de IA**: El modelo XGBoost fue entrenado para reconocer patrones en este rastro de datos científicos, permitiendo una inferencia proactiva.
+
+> [!NOTE]
+> Puedes consultar el cuaderno de investigación de NotebookLM utilizado para este proyecto aquí: 
+> **[Enlace al Cuaderno de SmartTrainer](https://notebooklm.google.com/notebook/d8b1ca55-fe6c-4f6e-ac1e-cc82e7e664a3)** *(Nota: Reemplaza con el enlace real si es compartido públicamente).*
 
 ---
 

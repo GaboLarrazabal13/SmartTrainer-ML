@@ -16,3 +16,4 @@ models/features_order.pkl
 .gemini
 test_*.py
 node_modules
+DOCUMENTACION/
