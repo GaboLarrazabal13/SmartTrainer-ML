@@ -5,6 +5,25 @@ from sqlalchemy.orm import sessionmaker
 from api.models import Base, Exercise, InjuryCondition
 from dotenv import load_dotenv
 
+def classify_body_part(raw_part, name):
+    raw = raw_part.lower()
+    n = name.lower()
+    
+    # Inferior
+    if any(k in raw for k in ["pierna", "cuád", "isquio", "glúteo", "pantorrilla", "aductor", "cadena post"]):
+        return "Inferior"
+    if any(k in n for k in ["peso muerto", "sentadilla", "squat", "clean", "swing", "zancada", "lunge"]):
+        return "Inferior"
+        
+    # Core
+    if any(k in raw for k in ["core", "abdomen", "oblicuo"]):
+        if "hombro" in raw or "brazo" in raw or "espalda" in raw:
+            return "Superior"
+        return "Core"
+        
+    # Superior
+    return "Superior"
+
 # Cargar variables de entorno
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -79,7 +98,7 @@ def parse_data(file_path):
                     continue
 
                 name = data_lines[i+1]
-                body_part = data_lines[i+2]
+                original_body_part = data_lines[i+2]
                 effort = data_lines[i+3]
                 fatigue_str = data_lines[i+4].replace("%", "").strip()
                 try:
@@ -88,6 +107,11 @@ def parse_data(file_path):
                     fatigue_val = 50.0
                 
                 zonas_afectadas = data_lines[i+5]
+                # Preservamos la información granular añadiéndola a la zona
+                zonas_afectadas = f"[{original_body_part}] {zonas_afectadas}"
+                
+                # Clasificamos a las grandes 3 familias para que el frontend funcione
+                body_part = classify_body_part(original_body_part, name)
                 
                 total_factor = fatigue_val / 50.0 
                 
