@@ -283,7 +283,9 @@ else:
                         if log_res.status_code == 200:
                             st.success("¡Sesión guardada/actualizada con éxito!")
                         else:
-                            st.error(f"Falló el guardado: {log_res.text}")
+                            st.error(f"Fallo el guardado: {log_res.status_code}")
+                            with st.expander("Detalles Técnicos del Error"):
+                                st.code(log_res.text)
 
                 with c_redo:
                     if st.button("🔄 REHACER SESIÓN"):

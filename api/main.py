@@ -10,7 +10,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func
+import re
+from sqlalchemy import func, String
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -108,8 +109,12 @@ def _compute_session_metrics(request: PredictionRequest, db: Session) -> tuple[d
             total_periph += net_fatigue
 
         for zona in str(ex.zonas).split(","):
-            z = zona.strip()
-            zone_counts[z] = zone_counts.get(z, 0) + 1
+            # Limpieza profunda: "[Superior] Codos [5, 6]." -> "CODOS"
+            z = re.sub(r'\[.*?\]', '', zona) # Quita [Superior] y [5, 6]
+            z = re.sub(r'\(.*?\)', '', z)    # Quita (meniscos), (L4-L5)
+            z = z.replace('.', '').strip().lower()
+            if z:
+                zone_counts[z] = zone_counts.get(z, 0) + 1
 
     metrics = {
         "total_exercises": len(request.exercises),
