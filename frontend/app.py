@@ -352,35 +352,47 @@ else:
             with c3:
                 alert_zones = d.get("alert_zones", [])
                 if alert_zones:
-                    # Limpiamos los nombres de zona para el radar
-                    zone_names  = [clean_zone_label(a["zone"]) for a in alert_zones]
-                    zone_counts = [a["exercise_count"] for a in alert_zones]
-                    
-                    # Para que el radar se vea como un polígono, necesitamos al menos 3 puntos.
-                    # Si hay menos, completamos con ceros.
-                    if len(zone_names) < 3:
-                        zone_names += ["ESTADÍSTICA", "TÉCNICA", "RECUPERACIÓN"][:3-len(zone_names)]
-                        zone_counts += [0] * (3 - len(zone_counts))
+                    try:
+                        # Limpiamos los nombres de zona para el radar
+                        zone_names  = [clean_zone_label(a["zone"]) for a in alert_zones]
+                        zone_counts = [a["exercise_count"] for a in alert_zones]
+                        
+                        # Para que el radar se vea como un polígono, necesitamos al menos 3 puntos.
+                        if len(zone_names) < 3:
+                            zone_names += ["ESTADÍSTICA", "TÉCNICA", "RECUPERACIÓN"][:3-len(zone_names)]
+                            zone_counts += [0] * (3 - len(zone_counts))
 
-                    # Cerrar el radar
-                    plot_names = zone_names + [zone_names[0]]
-                    plot_counts = zone_counts + [zone_counts[0]]
+                        # Cerrar el radar
+                        plot_names = zone_names + [zone_names[0]]
+                        plot_counts = zone_counts + [zone_counts[0]]
 
-                    fig_radar = go.Figure(go.Scatterpolar(
-                        r=plot_counts, theta=plot_names, fill='toself',
-                        line_color='#00D4FF', fillcolor='rgba(0,212,255,0.25)',
-                        name='Carga Articular'
-                    ))
-                    fig_radar.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        polar=dict(
-                            bgcolor="rgba(0,10,20,0.5)",
-                            radialaxis=dict(visible=True, gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.4)', range=[0, max(zone_counts)+1]),
-                            angularaxis=dict(gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.7)', font=dict(size=11))
-                        ),
-                        showlegend=False, height=360, margin=dict(t=40, b=40)
-                    )
-                    st.plotly_chart(fig_radar, use_container_width=True)
+                        fig_radar = go.Figure(go.Scatterpolar(
+                            r=plot_counts, theta=plot_names, fill='toself',
+                            line_color='#00D4FF', fillcolor='rgba(0,212,255,0.25)',
+                            name='Carga Articular'
+                        ))
+                        
+                        max_val = max(max(zone_counts), 1) + 0.5
+                        fig_radar.update_layout(
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            polar=dict(
+                                bgcolor="rgba(0,10,20,0.5)",
+                                radialaxis=dict(
+                                    visible=True, range=[0, max_val],
+                                    gridcolor='rgba(255,255,255,0.1)',
+                                    color='rgba(255,255,255,0.4)'
+                                ),
+                                angularaxis=dict(
+                                    gridcolor='rgba(255,255,255,0.1)',
+                                    color='rgba(255,255,255,0.7)'
+                                )
+                            ),
+                            showlegend=False, height=360, margin=dict(t=40, b=40, l=40, r=40)
+                        )
+                        st.plotly_chart(fig_radar, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error visualizando Radar: {str(e)}")
+                        st.info("Intenta seleccionar más ejercicios para estabilizar el análisis.")
                 else:
                     st.info("Sin zonas de alerta detectadas.")
 
