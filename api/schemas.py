@@ -101,6 +101,8 @@ class WorkoutSessionCreate(BaseModel):
     total_cns_fatigue: float
     total_periph_fatigue: float
     risk_probability: float
+    session_name: Optional[str] = "Sesión de Entrenamiento"
+    session_details: Optional[str] = "[]" # JSON completo de ejercicios/series
 
 # --- MODELOS ADMIN ---
 

@@ -12,7 +12,8 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import re
 import traceback
-from sqlalchemy import func, String, Date
+import json
+from sqlalchemy import func, String, Date, desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Request
@@ -290,6 +291,17 @@ def _trigger_mlops_retraining(db: Session):
         print("✅ [MLOps] Pipeline completado con éxito. Sesiones marcadas.")
 
 
+@app.get("/workouts/history/{email}", tags=["MLOps"])
+def get_workout_history(email: str, db: Session = Depends(get_db)):
+    """ Retorna las últimas 7 sesiones del usuario """
+    try:
+        sessions = db.query(WorkoutSession).filter(
+            WorkoutSession.user_email == email
+        ).order_by(desc(WorkoutSession.date)).limit(7).all()
+        return sessions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/workouts/check", tags=["MLOps"])
 def check_workout_session(email: str, date: str, db: Session = Depends(get_db)):
     """ Verifica si ya existe una sesión para este usuario en esta fecha """
@@ -330,10 +342,21 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             existing.total_periph_fatigue = session_data.total_periph_fatigue
             existing.risk_probability = session_data.risk_probability
             existing.is_trained = False
+            existing.session_name = session_data.session_name
+            try:
+                existing.session_details = json.loads(session_data.session_details)
+            except:
+                existing.session_details = []
             db.commit()
             return {"message": "Sesión actualizada correctamente."}
 
         # 3. Guardar nueva sesión
+        # Intentamos parsear session_details como JSON
+        try:
+            details_json = json.loads(session_data.session_details)
+        except:
+            details_json = []
+
         new_session = WorkoutSession(
             user_email=session_data.user_email,
             date=dt_start,
@@ -341,7 +364,9 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             total_cns_fatigue=session_data.total_cns_fatigue,
             total_periph_fatigue=session_data.total_periph_fatigue,
             risk_probability=session_data.risk_probability,
-            is_trained=False
+            is_trained=False,
+            session_name=session_data.session_name,
+            session_details=details_json
         )
         db.add(new_session)
         db.commit()

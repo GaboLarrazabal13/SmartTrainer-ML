@@ -79,6 +79,7 @@ if 'prediction_data'    not in st.session_state: st.session_state.prediction_dat
 if 'last_exercises_input' not in st.session_state: st.session_state.last_exercises_input = []
 if 'page'               not in st.session_state: st.session_state.page = "nueva_sesion"
 if 'session_date'       not in st.session_state: st.session_state.session_date = datetime.now().date()
+if 'session_name'       not in st.session_state: st.session_state.session_name = ""
 
 
 # ==========================================
@@ -182,6 +183,34 @@ else:
                 st.rerun()
 
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.85rem; font-weight:700; color:#00D4FF; margin-bottom:10px;'>📅 HISTORIAL (7 DÍAS)</div>", unsafe_allow_html=True)
+        
+        try:
+            hist_res = requests.get(f"{API_BASE}/workouts/history/{u['email']}", timeout=5)
+            if hist_res.status_code == 200:
+                history = hist_res.json()
+                for s in history:
+                    s_date = s['date'].split("T")[0]
+                    s_name = s.get('session_name') or "Sesión"
+                    with st.expander(f"📌 {s_date} - {s_name}"):
+                        st.markdown(f"**Fatiga SNC:** {s['total_cns_fatigue']:.1f}%")
+                        st.markdown(f"**Riesgo:** {s['risk_probability']*100:.1f}%")
+                        if s.get('session_details'):
+                            details = s['session_details']
+                            if isinstance(details, list):
+                                for ex in details:
+                                    # Buscar nombre del ejercicio en catalogo
+                                    ex_name = "Ejercicio"
+                                    if not catalog_df.empty:
+                                        match = catalog_df[catalog_df["id"] == ex['exercise_id']]
+                                        if not match.empty: ex_name = match.iloc[0]['name']
+                                    st.markdown(f"• {ex_name}: {ex['sets']} sets")
+            else:
+                st.caption("No se pudo cargar el historial.")
+        except:
+            st.caption("Historial temporalmente no disponible.")
+
+        st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
         if st.button("⏏  Cerrar Sesión", use_container_width=True, key="logout_btn"):
             st.session_state.logged_in = False
             st.session_state.user_data = None
@@ -196,9 +225,13 @@ else:
         with c_top1:
             st.session_state.session_date = st.date_input("Fecha de Entrenamiento", st.session_state.session_date)
         with c_top2:
-            rest_h = st.slider("Horas Descanso Múscular Global", 0, 168, 48)
+            st.session_state.session_name = st.text_input("Nombre de la Sesión (Ej: Pecho + Hombro)", st.session_state.session_name)
 
-        selected_zones = st.multiselect("Zonas Objetivo", ["Superior", "Inferior", "Core"], default=["Inferior"])
+        col_rest, col_zones = st.columns(2)
+        with col_rest:
+            rest_h = st.slider("Horas Descanso Múscular Global", 0, 168, 48)
+        with col_zones:
+            selected_zones = st.multiselect("Zonas Objetivo", ["Superior", "Inferior", "Core"], default=["Inferior"])
 
         exercises_in_zones = catalog_df[catalog_df["body_part"].isin(selected_zones)].copy()
         ex_options = {row['name']: row['id'] for _, row in exercises_in_zones.iterrows()}
@@ -277,7 +310,9 @@ else:
                             "exercise_ids":      json.dumps(ex_ids),
                             "total_cns_fatigue":     d.get("estimated_cns_load", 0),
                             "total_periph_fatigue":  d.get("estimated_peripheral_load", 0),
-                            "risk_probability":      d.get("injury_risk_probability", 0)
+                            "risk_probability":      d.get("injury_risk_probability", 0),
+                            "session_name":      st.session_state.session_name or f"Sesión {st.session_state.session_date}",
+                            "session_details":   json.dumps(st.session_state.last_exercises_input)
                         }
                         log_res = requests.post(f"{API_BASE}/workouts/log", json=log_payload)
                         if log_res.status_code == 200:

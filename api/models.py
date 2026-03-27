@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON
 from api.database import Base
 
 class Exercise(Base):
@@ -44,3 +44,5 @@ class WorkoutSession(Base):
     total_periph_fatigue = Column(Float)
     risk_probability = Column(Float)
     is_trained = Column(Boolean, default=False)
+    session_name = Column(String)
+    session_details = Column(JSON) # Almacena pesos/reps completos para historial
