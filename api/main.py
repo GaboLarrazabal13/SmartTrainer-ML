@@ -280,44 +280,48 @@ def check_workout_session(email: str, date: str, db: Session = Depends(get_db)):
 
 @app.post("/workouts/log", tags=["MLOps"])
 def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    # 1. Validar usuario
-    user = db.query(User).filter(User.email == session_data.user_email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Debe estar logueado para guardar sesiones.")
+    try:
+        # 1. Validar usuario
+        user = db.query(User).filter(User.email == session_data.user_email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Debe estar logueado para guardar sesiones.")
 
-    # 2. Manejar sobrescritura si ya existe para esa fecha exacta (YYYY-MM-DD)
-    existing = db.query(WorkoutSession).filter(
-        WorkoutSession.user_email == session_data.user_email,
-        WorkoutSession.date.like(f"{session_data.session_date}%")
-    ).first()
-    
-    if existing:
-        # Actualizamos la existente en lugar de crear duplicado
-        existing.exercise_ids = session_data.exercise_ids
-        existing.total_cns_fatigue = session_data.total_cns_fatigue
-        existing.total_periph_fatigue = session_data.total_periph_fatigue
-        existing.risk_probability = session_data.risk_probability
-        existing.is_trained = 0
+        # 2. Manejar sobrescritura si ya existe para esa fecha exacta (YYYY-MM-DD)
+        existing = db.query(WorkoutSession).filter(
+            WorkoutSession.user_email == session_data.user_email,
+            WorkoutSession.date.like(f"{session_data.session_date}%")
+        ).first()
+        
+        if existing:
+            # Actualizamos la existente en lugar de crear duplicado
+            existing.exercise_ids = session_data.exercise_ids
+            existing.total_cns_fatigue = session_data.total_cns_fatigue
+            existing.total_periph_fatigue = session_data.total_periph_fatigue
+            existing.risk_probability = session_data.risk_probability
+            existing.is_trained = 0
+            db.commit()
+            return {"message": "Sesión actualizada correctamente."}
+
+        # 3. Guardar nueva sesión
+        new_session = WorkoutSession(
+            user_email=session_data.user_email,
+            date=session_data.session_date,
+            exercise_ids=session_data.exercise_ids,
+            total_cns_fatigue=session_data.total_cns_fatigue,
+            total_periph_fatigue=session_data.total_periph_fatigue,
+            risk_probability=session_data.risk_probability,
+            is_trained=0
+        )
+        db.add(new_session)
         db.commit()
-        return {"message": "Sesión actualizada correctamente."}
-
-    # 3. Guardar nueva sesión
-    new_session = WorkoutSession(
-        user_email=session_data.user_email,
-        date=session_data.session_date,
-        exercise_ids=session_data.exercise_ids,
-        total_cns_fatigue=session_data.total_cns_fatigue,
-        total_periph_fatigue=session_data.total_periph_fatigue,
-        risk_probability=session_data.risk_probability,
-        is_trained=0
-    )
-    db.add(new_session)
-    db.commit()
-    
-    # 4. Lanzar verificación asíncrona de MLOps
-    background_tasks.add_task(_trigger_mlops_retraining, db)
-    
-    return {"message": "Sesión registrada con éxito para MLOps."}
+        
+        # 4. Lanzar verificación asíncrona de MLOps
+        background_tasks.add_task(_trigger_mlops_retraining, db)
+        
+        return {"message": "Sesión registrada con éxito para MLOps."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
 
 
 # ─────────────────────────────────────────────

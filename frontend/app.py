@@ -19,10 +19,16 @@ API_BASE = st.secrets.get("API_URL", "https://smarttrainer-ml.onrender.com")
 st.set_page_config(page_title="SmartTrainer Pro", page_icon="⚡", layout="wide")
 
 def clean_zone_label(label):
-    """Limpia etiquetas como '[Superior] Codos [5' a 'CODOS'"""
-    # Remueve contenido entre corchetes [...]
-    label = re.sub(r'\[.*?\]', '', label)
-    # Remueve números y caracteres especiales
+    """Limpia etiquetas como '[Superior] Codos' a 'CODOS' o '[Muñecas]' a 'MUÑECAS'"""
+    # 1. Si el formato es '[Categoria] Zona', extraemos solo 'Zona'
+    match = re.search(r'\[.*?\]\s*(.+)', label)
+    if match and match.group(1).strip():
+        label = match.group(1).strip()
+    else:
+        # 2. Si es solo '[Zona]', quitamos los corchetes
+        label = re.sub(r'\[|\]', '', label)
+    
+    # 3. Quitamos números y caracteres extraños (pero mantenemos tildes y ñ)
     label = re.sub(r'[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]', '', label)
     return label.strip().upper()
 
