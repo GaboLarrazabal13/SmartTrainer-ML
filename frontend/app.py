@@ -20,17 +20,22 @@ st.set_page_config(page_title="SmartTrainer Pro", page_icon="⚡", layout="wide"
 
 def clean_zone_label(label):
     """Limpia etiquetas como '[Superior] Codos' a 'CODOS' o '[Muñecas]' a 'MUÑECAS'"""
+    if not label: return "GENERAL"
+
     # 1. Si el formato es '[Categoria] Zona', extraemos solo 'Zona'
     match = re.search(r'\[.*?\]\s*(.+)', label)
     if match and match.group(1).strip():
         label = match.group(1).strip()
-    else:
-        # 2. Si es solo '[Zona]', quitamos los corchetes
-        label = re.sub(r'\[|\]', '', label)
+    
+    # 2. No importa qué pase, quitamos corchetes restantes
+    label = re.sub(r'\[|\]', '', label)
     
     # 3. Quitamos números y caracteres extraños (pero mantenemos tildes y ñ)
     label = re.sub(r'[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]', '', label)
-    return label.strip().upper()
+    
+    # fallback final
+    label = label.strip().upper()
+    return label if label else "ZONA"
 
 st.markdown("""
 <style>

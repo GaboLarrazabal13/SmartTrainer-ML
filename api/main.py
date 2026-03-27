@@ -300,6 +300,9 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             existing.risk_probability = session_data.risk_probability
             existing.is_trained = 0
             db.commit()
+            
+            # Lanzar verificación asíncrona enviando solo lo necesario
+            background_tasks.add_task(_trigger_mlops_retraining)
             return {"message": "Sesión actualizada correctamente."}
 
         # 3. Guardar nueva sesión
@@ -315,13 +318,28 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
         db.add(new_session)
         db.commit()
         
-        # 4. Lanzar verificación asíncrona de MLOps
-        background_tasks.add_task(_trigger_mlops_retraining, db)
+        # 4. Lanzar verificación asíncrona
+        background_tasks.add_task(_trigger_mlops_retraining)
         
         return {"message": "Sesión registrada con éxito para MLOps."}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+        # Log del error (simulado en el detalle de la respuesta para el usuario)
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+
+def _trigger_mlops_retraining():
+    """Verifica si hay suficientes datos para disparar un reentrenamiento (Fondo)."""
+    from api.database import SessionLocal
+    db = SessionLocal()
+    try:
+        count = db.query(WorkoutSession).filter(WorkoutSession.is_trained == 0).count()
+        # Si llegamos a 100 sesiones nuevas, podríamos disparar un pipeline (Placeholder)
+        if count >= 100:
+            print(f"DEBUG: MLOps retraining triggered. Sessions pending: {count}")
+    except Exception as e:
+        print(f"Error in background retraining: {e}")
+    finally:
+        db.close()
 
 
 # ─────────────────────────────────────────────
