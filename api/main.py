@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import re
+import traceback
 from sqlalchemy import func, String
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -109,10 +110,11 @@ def _compute_session_metrics(request: PredictionRequest, db: Session) -> tuple[d
             total_periph += net_fatigue
 
         for zona in str(ex.zonas).split(","):
-            # Limpieza profunda: "[Superior] Codos [5, 6]." -> "CODOS"
+            # Limpieza ULTRA-AGGRESSIVE: "[Superior] Codos [5, 6]." -> "rodillas"
             z = re.sub(r'\[.*?\]', '', zona) # Quita [Superior] y [5, 6]
             z = re.sub(r'\(.*?\)', '', z)    # Quita (meniscos), (L4-L5)
-            z = z.replace('.', '').strip().lower()
+            # Quitar TODO lo que no sea letra o espacio, luego strip y lower
+            z = re.sub(r'[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]', '', z).strip().lower()
             if z:
                 zone_counts[z] = zone_counts.get(z, 0) + 1
 
@@ -278,11 +280,15 @@ def _trigger_mlops_retraining(db: Session):
 @app.get("/workouts/check", tags=["MLOps"])
 def check_workout_session(email: str, date: str, db: Session = Depends(get_db)):
     """ Verifica si ya existe una sesión para este usuario en esta fecha """
-    existing = db.query(WorkoutSession).filter(
-        WorkoutSession.user_email == email,
-        WorkoutSession.date.like(f"{date}%")
-    ).first()
-    return {"exists": existing is not None}
+    try:
+        # Usamos func.cast para compatibilidad con Timestamps
+        existing = db.query(WorkoutSession).filter(
+            WorkoutSession.user_email == email,
+            func.cast(WorkoutSession.date, String).like(f"{date}%")
+        ).first()
+        return {"exists": existing is not None}
+    except Exception as e:
+        return {"exists": False, "error": str(e)}
 
 @app.post("/workouts/log", tags=["MLOps"])
 def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -331,8 +337,9 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
         return {"message": "Sesión registrada con éxito para MLOps."}
     except Exception as e:
         db.rollback()
-        # Log del error (simulado en el detalle de la respuesta para el usuario)
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        error_trace = traceback.format_exc()
+        print(f"CRITICAL ERROR in log_workout_session:\n{error_trace}")
+        raise HTTPException(status_code=500, detail=f"TRACEBACK: {error_trace}")
 
 def _trigger_mlops_retraining():
     """Verifica si hay suficientes datos para disparar un reentrenamiento (Fondo)."""
