@@ -122,13 +122,14 @@ def _compute_session_metrics(request: PredictionRequest, db: Session) -> tuple[d
             total_periph += net_fatigue
 
         for zona in str(ex.zonas).split(","):
-            # Limpieza ULTRA-AGGRESSIVE: "[Superior] Codos [5, 6]." -> "rodillas"
-            z = re.sub(r'\[.*?\]', '', zona) # Quita [Superior] y [5, 6]
-            z = re.sub(r'\(.*?\)', '', z)    # Quita (meniscos), (L4-L5)
-            # Quitar TODO lo que no sea letra o espacio, luego strip y lower
-            z = re.sub(r'[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]', '', z).strip().lower()
-            if z:
-                zone_counts[z] = zone_counts.get(z, 0) + 1
+            # Limpieza QUIRÚRGICA: Solo palabras reales de 3+ letras
+            # Esto ignora [5, 6], (meniscos), '.', etc.
+            words = re.findall(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}', zona)
+            for w in words:
+                w_low = w.lower()
+                # Opcional: filtro adicional para evitar palabras genéricas si es necesario
+                if w_low not in ["superior", "inferior", "global", "cadena"]:
+                    zone_counts[w_low] = zone_counts.get(w_low, 0) + 1
 
     metrics = {
         "total_exercises": len(request.exercises),
@@ -335,7 +336,7 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
         # 3. Guardar nueva sesión
         new_session = WorkoutSession(
             user_email=session_data.user_email,
-            date=dt_obj,
+            date=dt_start,
             exercise_ids=session_data.exercise_ids,
             total_cns_fatigue=session_data.total_cns_fatigue,
             total_periph_fatigue=session_data.total_periph_fatigue,
