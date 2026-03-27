@@ -193,22 +193,26 @@ def predict(request: PredictionRequest, db: Session = Depends(get_db)):
 
 @app.post("/register", tags=["Usuarios"])
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="El email ya está registrado.")
-    
-    new_user = User(
-        email=user.email,
-        age=user.age,
-        weight=user.weight,
-        height=user.height,
-        experience_level=user.experience_level,
-        injury_history_id=user.injury_history_id
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return {"message": "Usuario registrado exitosamente", "email": new_user.email}
+    try:
+        existing = db.query(User).filter(User.email == user.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="El email ya está registrado.")
+        
+        new_user = User(
+            email=user.email,
+            age=user.age,
+            weight=user.weight,
+            height=user.height,
+            experience_level=user.experience_level,
+            injury_history_id=user.injury_history_id
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return {"message": "Usuario registrado exitosamente", "email": new_user.email}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/login", tags=["Usuarios"])
 def login_user(login: UserLogin, db: Session = Depends(get_db)):

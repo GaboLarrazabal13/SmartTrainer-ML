@@ -19,7 +19,7 @@ API_BASE = st.secrets.get("API_URL", "https://smarttrainer-ml.onrender.com")
 # ==========================================
 # CONFIG DE PÁGINA Y CSS
 # ==========================================
-st.set_page_config(page_title="SmartTrainer ML | SaaS", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="SmartTrainer ML", page_icon="⚡", layout="wide")
 
 st.markdown("""
 <style>
@@ -66,7 +66,7 @@ inj_options = ["Ninguna"] + list(injuries_dict.keys())
 # ==========================================
 if not st.session_state.logged_in:
     
-    st.markdown("<center><h1 style='font-size:3rem; margin-top:5vh;'>SmartTrainer <span style='color:#00D4FF'>SaaS</span></h1></center>", unsafe_allow_html=True)
+    st.markdown("<center><h1 style='font-size:3rem; margin-top:5vh;'>SmartTrainer <span style='color:#00D4FF'>Pro</span></h1></center>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
