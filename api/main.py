@@ -12,9 +12,11 @@ from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import re
 import traceback
-from sqlalchemy import func, String
+from sqlalchemy import func, String, Date
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Request
+from fastapi.responses import JSONResponse
 
 from api.schemas import (
     PredictionRequest, PredictionResponse,
@@ -44,10 +46,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SmartTrainer ML - API de Predicción de Riesgo",
+    title="SmartTrainer Pro API",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Mover el global handler al principio para capturar TODO
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_trace = traceback.format_exc()
+    print(f"GLOBAL CRASH: {error_trace}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"GLOBAL TRACEBACK: {error_trace}"}
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -281,10 +293,12 @@ def _trigger_mlops_retraining(db: Session):
 def check_workout_session(email: str, date: str, db: Session = Depends(get_db)):
     """ Verifica si ya existe una sesión para este usuario en esta fecha """
     try:
-        # Usamos func.cast para compatibilidad con Timestamps
+        dt_start = datetime.strptime(date, "%Y-%m-%d")
+        dt_end = dt_start + timedelta(days=1)
         existing = db.query(WorkoutSession).filter(
             WorkoutSession.user_email == email,
-            func.cast(WorkoutSession.date, String).like(f"{date}%")
+            WorkoutSession.date >= dt_start,
+            WorkoutSession.date < dt_end
         ).first()
         return {"exists": existing is not None}
     except Exception as e:
@@ -299,10 +313,13 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             raise HTTPException(status_code=404, detail="Debe estar logueado para guardar sesiones.")
 
         # 2. Manejar sobrescritura si ya existe para esa fecha exacta (YYYY-MM-DD)
-        # Usamos func.cast para que Postgres pueda buscar un string en una columna DATE/TIMESTAMP
+        dt_start = datetime.strptime(session_data.session_date, "%Y-%m-%d")
+        dt_end = dt_start + timedelta(days=1)
+        
         existing = db.query(WorkoutSession).filter(
             WorkoutSession.user_email == session_data.user_email,
-            func.cast(WorkoutSession.date, String).like(f"{session_data.session_date}%")
+            WorkoutSession.date >= dt_start,
+            WorkoutSession.date < dt_end
         ).first()
         
         if existing:
@@ -311,17 +328,14 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             existing.total_cns_fatigue = session_data.total_cns_fatigue
             existing.total_periph_fatigue = session_data.total_periph_fatigue
             existing.risk_probability = session_data.risk_probability
-            existing.is_trained = False # Match con tipo Boolean en DB
+            existing.is_trained = False
             db.commit()
-            
-            # Lanzar verificación asíncrona enviando solo lo necesario
-            background_tasks.add_task(_trigger_mlops_retraining)
             return {"message": "Sesión actualizada correctamente."}
 
         # 3. Guardar nueva sesión
         new_session = WorkoutSession(
             user_email=session_data.user_email,
-            date=datetime.strptime(session_data.session_date, "%Y-%m-%d"), # Convertimos a objeto datetime
+            date=dt_obj,
             exercise_ids=session_data.exercise_ids,
             total_cns_fatigue=session_data.total_cns_fatigue,
             total_periph_fatigue=session_data.total_periph_fatigue,
@@ -330,10 +344,6 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
         )
         db.add(new_session)
         db.commit()
-        
-        # 4. Lanzar verificación asíncrona
-        background_tasks.add_task(_trigger_mlops_retraining)
-        
         return {"message": "Sesión registrada con éxito para MLOps."}
     except Exception as e:
         db.rollback()
