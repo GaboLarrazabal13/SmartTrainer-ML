@@ -13,7 +13,8 @@ import json
 # CONFIGURACIÓN DEL ENTORNO DE PRODUCCIÓN
 # ==========================================
 # El endpoint Fastapi alojado en onRender.
-API_BASE = "https://smarttrainer-ml.onrender.com"
+# Primero intentamos leer de st.secrets (Streamlit Cloud) o fallback local.
+API_BASE = st.secrets.get("API_URL", "https://smarttrainer-ml.onrender.com")
 
 # ==========================================
 # CONFIG DE PÁGINA Y CSS
