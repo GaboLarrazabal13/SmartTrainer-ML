@@ -15,7 +15,7 @@ from datetime import datetime
 
 from api.schemas import (
     PredictionRequest, PredictionResponse,
-    UserCreate, UserLogin, WorkoutSessionCreate,
+    UserCreate, UserLogin, UserUpdate, WorkoutSessionCreate,
     ExerciseCreate, InjuryConditionCreate
 )
 from api.rules_engine import apply_rules
@@ -228,9 +228,32 @@ def login_user(login: UserLogin, db: Session = Depends(get_db)):
         "injury_history_id": user.injury_history_id
     }
 
-# ─────────────────────────────────────────────
-#  Módulo MLOps y Registro de Sesiones
-# ─────────────────────────────────────────────
+@app.patch("/users/{email}", tags=["Usuarios"])
+def update_user(email: str, user_update: UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    if user_update.age is not None:
+        user.age = user_update.age
+    if user_update.weight is not None:
+        user.weight = user_update.weight
+    if user_update.height is not None:
+        user.height = user_update.height
+    if user_update.experience_level is not None:
+        user.experience_level = user_update.experience_level
+    if user_update.injury_history_id is not None:
+        user.injury_history_id = user_update.injury_history_id
+    db.commit()
+    db.refresh(user)
+    return {
+        "email": user.email,
+        "age": user.age,
+        "weight": user.weight,
+        "height": user.height,
+        "experience_level": user.experience_level,
+        "injury_history_id": user.injury_history_id
+    }
+
 
 def _trigger_mlops_retraining(db: Session):
     """ Función que simula o dispara el pipeline de MLOps en backgrouund """

@@ -87,6 +87,13 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
 
+class UserUpdate(BaseModel):
+    age: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    experience_level: Optional[Literal["Principiante", "Intermedio", "Avanzado"]] = None
+    injury_history_id: Optional[int] = None
+
 class WorkoutSessionCreate(BaseModel):
     user_email: str
     exercise_ids: str # JSON array en string
