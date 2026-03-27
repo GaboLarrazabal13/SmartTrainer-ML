@@ -173,6 +173,7 @@ else:
         pages = [
             ("nueva_sesion",  "🏋️", "Nueva Sesión"),
             ("dashboard",     "📊", "Dashboard Predictivo"),
+            ("historial",     "📅", "Historial Completo"),
             ("editar_perfil", "✏️", "Editar Perfil"),
         ]
         if is_admin: pages.append(("admin", "⚙️", "Panel de Administración"))
@@ -181,34 +182,6 @@ else:
             if st.button(f"{icon}  {label}", key=f"nav_{page_id}", use_container_width=True):
                 st.session_state.page = page_id
                 st.rerun()
-
-        st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size:0.85rem; font-weight:700; color:#00D4FF; margin-bottom:10px;'>📅 HISTORIAL (7 DÍAS)</div>", unsafe_allow_html=True)
-        
-        try:
-            hist_res = requests.get(f"{API_BASE}/workouts/history/{u['email']}", timeout=5)
-            if hist_res.status_code == 200:
-                history = hist_res.json()
-                for s in history:
-                    s_date = s['date'].split("T")[0]
-                    s_name = s.get('session_name') or "Sesión"
-                    with st.expander(f"📌 {s_date} - {s_name}"):
-                        st.markdown(f"**Fatiga SNC:** {s['total_cns_fatigue']:.1f}%")
-                        st.markdown(f"**Riesgo:** {s['risk_probability']*100:.1f}%")
-                        if s.get('session_details'):
-                            details = s['session_details']
-                            if isinstance(details, list):
-                                for ex in details:
-                                    # Buscar nombre del ejercicio en catalogo
-                                    ex_name = "Ejercicio"
-                                    if not catalog_df.empty:
-                                        match = catalog_df[catalog_df["id"] == ex['exercise_id']]
-                                        if not match.empty: ex_name = match.iloc[0]['name']
-                                    st.markdown(f"• {ex_name}: {ex['sets']} sets")
-            else:
-                st.caption("No se pudo cargar el historial.")
-        except:
-            st.caption("Historial temporalmente no disponible.")
 
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
         if st.button("⏏  Cerrar Sesión", use_container_width=True, key="logout_btn"):
@@ -445,7 +418,70 @@ else:
                 st.markdown(f'<div class="rec-box" style="margin-top:1rem;">💡 <b>RECOMENDACIÓN DEL ENGINE:</b><br>{d.get("general_recommendation", "")}</div>', unsafe_allow_html=True)
 
 
-    # --- PÁGINA 3: EDITAR PERFIL ---
+    # --- PÁGINA 3: HISTORIAL COMPLETO ---
+    elif st.session_state.page == "historial":
+        st.markdown("# TU <span style='color:#00D4FF'>HISTORIAL</span>", unsafe_allow_html=True)
+        st.caption("Revisa el detalle de tus últimas sesiones realizadas.")
+
+        try:
+            # Obtener historial de la API
+            hist_res = requests.get(f"{API_BASE}/workouts/history/{u['email']}", timeout=8)
+            if hist_res.status_code == 200:
+                history = hist_res.json()
+                if not history:
+                    st.info("Aún no tienes sesiones registradas.")
+                else:
+                    for s in history:
+                        s_date = s['date'].split("T")[0]
+                        s_name = s.get('session_name') or "Sesión Sin Nombre"
+                        lvl = "NORMAL"
+                        prob = s.get('risk_probability', 0) * 100
+                        clr = "#21c55d" # Verde por defecto
+                        if prob > 70: clr = "#ef4444"; lvl = "CRÍTICO"
+                        elif prob > 40: clr = "#fbbf24"; lvl = "ALTO"
+
+                        with st.container(border=True):
+                            c_tit, c_met = st.columns([2, 1])
+                            with c_tit:
+                                st.markdown(f"### 📌 {s_name}")
+                                st.markdown(f"<span style='color:rgba(255,255,255,0.4); font-size:0.9rem;'>Fecha: {s_date}</span>", unsafe_allow_html=True)
+                            with c_met:
+                                st.markdown(f"<div style='text-align:right;'><span style='background:{clr}; color:#000; padding:4px 10px; border-radius:12px; font-weight:700; font-size:0.8rem;'>{lvl} {prob:.1f}%</span></div>", unsafe_allow_html=True)
+                            
+                            cc1, cc2, cc3 = st.columns(3)
+                            cc1.metric("Fatiga SNC", f"{s['total_cns_fatigue']:.1f}%")
+                            cc2.metric("Fatiga Perif.", f"{s['total_periph_fatigue']:.1f}%")
+                            cc3.metric("Riesgo", f"{prob:.1f}%")
+
+                            if s.get('session_details'):
+                                details = s['session_details']
+                                if isinstance(details, list):
+                                    with st.expander("Ver desglose de ejercicios"):
+                                        for ex in details:
+                                            # Buscar nombre del ejercicio en catalogo
+                                            ex_name = "Ejercicio Desconocido"
+                                            if not catalog_df.empty:
+                                                match = catalog_df[catalog_df["id"] == ex['exercise_id']]
+                                                if not match.empty: ex_name = match.iloc[0]['name']
+                                            
+                                            st.markdown(f"**{ex_name}**")
+                                            st.markdown(f"Sets: {ex['sets']} | Esfuerzo: {ex['effort_sensation']}")
+                                            # Mostrar pesos y reps si existen
+                                            if ex.get('reps_per_set') and ex.get('load_kg_per_set'):
+                                                # Formatear lista reps/loads
+                                                r_str = ", ".join(map(str, ex['reps_per_set']))
+                                                l_str = ", ".join(map(str, ex['load_kg_per_set']))
+                                                st.markdown(f"<small style='color:rgba(255,255,255,0.5);'>Reps: [{r_str}] | Kg: [{l_str}]</small>", unsafe_allow_html=True)
+                                            st.divider()
+                        st.markdown("<br>", unsafe_allow_html=True)
+            else:
+                st.error(f"Error al cargar historial (Código {hist_res.status_code})")
+                if hist_res.status_code == 404:
+                    st.warning("El servidor de historial aún no está activo. Por favor espera a que Render complete el despliegue.")
+        except Exception as e:
+            st.error(f"Error de conexión con el historial: {e}")
+
+    # --- PÁGINA 4: EDITAR PERFIL ---
     elif st.session_state.page == "editar_perfil":
         st.markdown("# EDITAR <span style='color:#00D4FF'>PERFIL</span>", unsafe_allow_html=True)
         st.caption("Actualiza tus datos físicos y nivel de experiencia.")
