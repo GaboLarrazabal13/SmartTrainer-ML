@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
 from api.database import Base
 
 class Exercise(Base):
@@ -38,9 +38,9 @@ class WorkoutSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_email = Column(String, index=True)
-    date = Column(String)  # ISO format string or timestamp
-    exercise_ids = Column(String) # JSON string
+    date = Column(DateTime) 
+    exercise_ids = Column(String) 
     total_cns_fatigue = Column(Float)
     total_periph_fatigue = Column(Float)
     risk_probability = Column(Float)
-    is_trained = Column(Integer, default=0) # 0 False, 1 True flag for MLOps
+    is_trained = Column(Boolean, default=False)

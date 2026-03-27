@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -287,9 +288,10 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             raise HTTPException(status_code=404, detail="Debe estar logueado para guardar sesiones.")
 
         # 2. Manejar sobrescritura si ya existe para esa fecha exacta (YYYY-MM-DD)
+        # Usamos func.cast para que Postgres pueda buscar un string en una columna DATE/TIMESTAMP
         existing = db.query(WorkoutSession).filter(
             WorkoutSession.user_email == session_data.user_email,
-            WorkoutSession.date.like(f"{session_data.session_date}%")
+            func.cast(WorkoutSession.date, String).like(f"{session_data.session_date}%")
         ).first()
         
         if existing:
@@ -298,7 +300,7 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
             existing.total_cns_fatigue = session_data.total_cns_fatigue
             existing.total_periph_fatigue = session_data.total_periph_fatigue
             existing.risk_probability = session_data.risk_probability
-            existing.is_trained = 0
+            existing.is_trained = False # Match con tipo Boolean en DB
             db.commit()
             
             # Lanzar verificación asíncrona enviando solo lo necesario
@@ -308,12 +310,12 @@ def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: Ba
         # 3. Guardar nueva sesión
         new_session = WorkoutSession(
             user_email=session_data.user_email,
-            date=session_data.session_date,
+            date=datetime.strptime(session_data.session_date, "%Y-%m-%d"), # Convertimos a objeto datetime
             exercise_ids=session_data.exercise_ids,
             total_cns_fatigue=session_data.total_cns_fatigue,
             total_periph_fatigue=session_data.total_periph_fatigue,
             risk_probability=session_data.risk_probability,
-            is_trained=0
+            is_trained=False
         )
         db.add(new_session)
         db.commit()
@@ -332,7 +334,7 @@ def _trigger_mlops_retraining():
     from api.database import SessionLocal
     db = SessionLocal()
     try:
-        count = db.query(WorkoutSession).filter(WorkoutSession.is_trained == 0).count()
+        count = db.query(WorkoutSession).filter(WorkoutSession.is_trained == False).count()
         # Si llegamos a 100 sesiones nuevas, podríamos disparar un pipeline (Placeholder)
         if count >= 100:
             print(f"DEBUG: MLOps retraining triggered. Sessions pending: {count}")
