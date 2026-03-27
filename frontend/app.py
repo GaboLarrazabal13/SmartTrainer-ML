@@ -58,7 +58,8 @@ def fetch_injuries():
 
 catalog_df = fetch_catalog()
 injuries_data = fetch_injuries()
-injuries_dict = {i["lesion"]: i["id"] for i in injuries_data} if injuries_data else {}
+# Formateamos las opciones como "Zona + Lesión" tal como pidió el usuario
+injuries_dict = {f"{i['zona']} + {i['lesion']}": i["id"] for i in injuries_data} if injuries_data else {}
 inj_options = ["Ninguna"] + list(injuries_dict.keys())
 
 # ==========================================
@@ -157,7 +158,8 @@ else:
                 # Buscar nombre de lesión previa para el prompt a la API
                 inj_name = "Ninguna"
                 for i in injuries_data:
-                    if i["id"] == u_data["injury_history_id"]: inj_name = i["lesion"]
+                    if i["id"] == u_data["injury_history_id"]: 
+                        inj_name = i["lesion"] # El backend espera el nombre de la lesión para la alerta dinámica
                 
                 payload = {
                     "age": u_data["age"], "weight_kg": u_data["weight"], 
