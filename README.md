@@ -1,140 +1,64 @@
-# 🏋️ SmartTrainer ML: Predictor de Riesgo y Optimización Biofísica
+# 🤖 SmartTrainer Pro - MLOps Edition
 
-![Status](https://img.shields.io/badge/Status-Functional_MVP-success)
-![Tech Stack](https://img.shields.io/badge/Stack-Python_|_FastAPI_|_XGBoost_|_Streamlit-blue)
-
-**SmartTrainer ML** es un sistema inteligente diseñado para atletas y entrenadores que buscan cuantificar el riesgo de lesión y la fatiga acumulada durante una sesión de entrenamiento de fuerza. Utilizando un modelo de gradiente aumentado (**XGBoost**) y un motor de reglas basado en fisiología aplicada, el sistema predice la probabilidad de sobrecarga y ofrece recomendaciones de recuperación precisas.
-
----
+¡Bienvenido a la versión más avanzada de **SmartTrainer Pro**! Esta plataforma combina Machine Learning (XGBoost) con un Motor de Reglas Clínicas para prevenir lesiones y optimizar el rendimiento de atletas de elite.
 
 ## 🚀 Características Principales
 
-- **Simulación Biomecánica**: Generador de datos sintéticos que modela 50 ejercicios con perfiles de fatiga específicos (Sistema Nervioso Central vs. Periférica).
-- **Inferencia Probalística**: No solo detecta si hay riesgo, sino que calcula un **% de probabilidad** exacto (XGBoost).
-- **Motor de Reglas Dinámico**: Identifica sobrecarga local en zonas anatómicas (Lumbar, Rodillas, Hombros, etc.) basándose en el volumen real de la sesión.
-- **Dashboard Interactivo**: Interfaz moderna en **Streamlit** (Dark Mode) con indicadores de riesgo, métricas de volumen y gráficos de impacto anatómico.
-- **Backend Robusto**: API desarrollada con **FastAPI** y validación de tipos vía Pydantic.
+- **Predicción de Riesgo en Tiempo Real**: Un modelo entrenado con miles de sesiones detecta patrones de sobrecarga antes de que se conviertan en lesiones.
+- **Historial Completo de Sesiones**: Nueva página dedicada para revisar tu progreso, cargas, repeticiones y fatiga acumulada.
+- **Motor de Reglas Biomecánicas**: Interpretación quirúrgica de los datos para darte consejos específicos sobre cada articulación.
+- **Sincronización con Supabase**: Persistencia robusta y escalable para tus datos de entrenamiento.
+- **Interfaz Premium**: Diseño oscuro, estético y dinámico con integración de marca.
 
----
+## 📁 Estructura del Proyecto
 
-## 📂 Estructura del Proyecto
+```text
+├── api/                # Backend (FastAPI + SQLAlchemy)
+│   ├── main.py         # Punto de entrada y endpoints
+│   ├── models.py       # Modelos de base de datos (Supabase)
+│   ├── database.py     # Configuración de conexión y ORM
+│   ├── schemas.py      # Validación de datos (Pydantic)
+│   └── rules_engine.py # Lógica de recomendaciones clínicas
+├── frontend/           # Interfaz de Usuario (Streamlit)
+│   ├── app.py          # Aplicación principal
+│   └── assets/         # Recursos visuales (logo.png)
+├── data/               # Ingeniería de Datos
+│   └── dataset_generator.py # Generador de datos sintéticos biomecánicos
+├── models/             # Modelos de Machine Learning (XGBoost)
+└── requirements.txt    # Dependencias del proyecto
+```
 
-- `api/`: Lógica del servidor, esquemas de datos y motor de reglas.
-- `data/`: Generador de bases de datos relacionales y catálogos de ejercicios.
-- `models/`: Scripts de entrenamiento, preprocesamiento y modelos serializados (.pkl).
-- `frontend/`: Aplicación visual en Streamlit.
-- `mlruns/`: Trazabilidad de experimentos mediante MLflow.
+## 🛠️ Instalación y Uso Local
 
----
+### 1. Requisitos Previos
+- Python 3.10+
+- Una cuenta en Supabase (o cualquier PostgreSQL).
 
-## 🛠️ Instalación y Configuración
+### 2. Configuración
+Crea un archivo `.env` en la raíz con tu URL de base de datos:
+```env
+DATABASE_URL=tu_url_de_postgresql
+```
 
-1. **Clonar el repositorio** e instalar dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 3. Instalación
+```bash
+pip install -r requirements.txt
+```
 
-2. **Generar la Base de Datos** (opcional):
-   ```bash
-   python data/dataset_generator.py
-   ```
-
-3. **Entrenar el Modelo**:
-   ```bash
-   python models/train.py
-   ```
-
----
-
-## 🎮 Cómo Ejecutar
-
-Para disfrutar de la experiencia completa, inicia ambos servicios:
-
-### 1. Iniciar la API (Servidor)
+### 4. Ejecución
+**Servidor API:**
 ```bash
 uvicorn api.main:app --reload
 ```
 
-Acceso a la documentación interactiva: `http://localhost:8000/docs`
-
-### 2. Iniciar el Dashboard (Interfaz)
+**Frontend:**
 ```bash
 streamlit run frontend/app.py
 ```
 
----
+## 🧠 El Motor de Inteligencia
 
-## 🐳 Despliegue con Docker
-
-Puedes ejecutar el proyecto de dos formas:
-
-### A. Usando Docker Hub (Sin descargar código)
-
-Ideal para usuarios finales. Solo necesitas Docker instalado:
-
-```bash
-# Descargar imágenes
-docker pull gabolarrazabal13/smarttrainerml-api:1.0
-docker pull gabolarrazabal13/smarttrainerml-frontend:1.0
-
-# Ejecutar manualmente o vía compose
-docker compose up
-```
-
-### B. Ejecución Local con Docker Compose
-
-Si has clonado este repositorio:
-
-```bash
-docker-compose up --build
-```
-
-- **API**: `http://localhost:8000`
-- **Dashboard**: `http://localhost:8501`
+El sistema utiliza un procesador de variables que transforma tu edad, experiencia y fatiga acumulada en una probabilidad de riesgo. Si esta probabilidad supera el **70%**, el sistema activará alertas críticas y bloqueará ejercicios de alta carga axial para proteger tu salud.
 
 ---
-
-## 🧠 Metodología de Cálculo de Fatiga
-
-El sistema utiliza la siguiente fórmula para estimar el estrés fisiológico de cada ejercicio:
-
-$$Fatiga_{Neta} = (\%\ Fatiga_{Basal}) \times \left( \frac{Sets \times Reps \times Carga}{Peso\ Corporal} \right) \times Multiplicador_{Esfuerzo}$$
-
-- **SNC (Sistema Nervioso Central)**: Generada por ejercicios multiarticulares pesados (ej. Peso Muerto).
-- **Periférica**: Agotamiento muscular localizado (ej. Curl de Bíceps).
-
----
-
-## 🛡️ Límites de Seguridad e Inferencia
-
-El modelo tiene en cuenta:
-
-- **Edad y Peso**: Proporcionalidad de las cargas.
-- **Nivel de Experiencia**: Capacidad de recuperación adaptativa.
-- **Regla del Doble Impacto**: Si una zona anatómica recibe 2 o más ejercicios intensos, se dispara una alerta de recuperación forzada (48h-72h).
-
----
-
-## 🔬 Origen e Investigación (NotebookLM)
-
-Este proyecto no es solo una herramienta de código, sino el resultado de una investigación exhaustiva basada en **Ciencia del Deporte y Fisiología del Ejercicio**.
-
-El proceso de desarrollo siguió esta metodología:
-1.  **Ingesta de Evidencia**: Se utilizó **NotebookLM** para procesar y sintetizar múltiples fuentes científicas sobre fatiga del Sistema Nervioso Central (SNC), sobrecarga progresiva y prevención de lesiones biomecánicas.
-2.  **Extracción de Reglas**: De esta investigación se derivaron las constantes y multiplicadores utilizados en el simulador (`dataset_generator.py`), como la "Regla del Doble Impacto" por zona anatómica.
-3.  **Simulación de Datos**: Creamos un "Gemelo Digital" que recrea la respuesta fisiológica humana ante diferentes intensidades y descansos.
-4.  **Entrenamiento de IA**: El modelo XGBoost fue entrenado para reconocer patrones en este rastro de datos científicos, permitiendo una inferencia proactiva.
-
-> [!NOTE]
-> Puedes consultar el cuaderno de investigación de NotebookLM utilizado para este proyecto aquí: 
-> **[Enlace al Cuaderno de SmartTrainer](https://notebooklm.google.com/notebook/fa80e96a-9f3c-4293-b432-2e32b2994c28?authuser=1)** *(Nota: Reemplaza con el enlace real si es compartido públicamente).*
-
----
-
-Desarrollado con ❤️ para la comunidad de entrenamiento de fuerza basado en evidencia.
-### Actualización Biofísica 2026 (Elite)
-En la Fase 14, se integraron parámetros de la nota **"Anatomía del Riesgo"** (NotebookLM). El sistema ahora modela:
-- **Fatiga del SNC**: Crítica en ejercicios multiarticulares pesados (>90% fatiga).
-- **Fatiga Periférica**: Acumulada en ejercicios de aislamiento, precursora de tendinitis.
-- **RPE Modulator**: El esfuerzo percibido de 9-10 escala exponencialmente el riesgo y el costo de recuperación.
-- **Protocolos de Recuperación**: Diferenciados por zona y tipo de impacto neuromuscular.
+*Desarrollado con ❤️ para atletas que buscan la excelencia sin comprometer su longevidad.*

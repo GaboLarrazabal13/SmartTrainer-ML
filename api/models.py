@@ -6,10 +6,10 @@ class Exercise(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    body_part = Column(String)  # Inferior, Superior, Core
+    body_part = Column(String)  # Inferior, Superior, Core, etc.
     zonas = Column(String)      # Cuadriceps, Isquios, Pecho, etc.
-    cns_impact_factor = Column(Float)
-    periph_impact_factor = Column(Float)
+    cns_impact_factor = Column(Float) # Factor de impacto en el SNC (0-1)
+    periph_impact_factor = Column(Float) # Factor de impacto Periférico (0-1)
 
 
 class InjuryCondition(Base):
@@ -31,7 +31,7 @@ class User(Base):
     weight = Column(Float)
     height = Column(Float)
     experience_level = Column(String)
-    injury_history_id = Column(Integer) # Opcional foreign key manual a injury_conditions.id
+    injury_history_id = Column(Integer) # Referencia manual a injury_conditions.id
 
 class WorkoutSession(Base):
     __tablename__ = "workout_sessions"

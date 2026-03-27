@@ -1,9 +1,9 @@
 """
-schemas.py - Modelos de Datos (Pydantic)
----------------------------------------
-Define la estructura de entrada (Request) y salida (Response) de la API.
+Esquemas de Datos (Pydantic) - SmartTrainer Pro
+------------------------------------------------
+Define las estructuras de validación para las peticiones y respuestas de la API.
 Garantiza que los datos recibidos (edad, peso, ejercicios) cumplan con 
-los tipos y rangos necesarios para que el modelo ML procese la información.
+los tipos y rangos necesarios para que el modelo XGBoost procese la información.
 """
 from pydantic import BaseModel, Field
 from typing import Literal, List, Optional

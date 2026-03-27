@@ -154,12 +154,16 @@ else:
 
     # --- SIDEBAR NAVEGACIÓN PREMIUM ---
     with st.sidebar:
-        st.markdown(f"""
-        <div style='padding:0 0.5rem 0.5rem;'>
-          <div style='font-size:1.4rem; font-weight:800; color:#00D4FF;'>⚡ SmartTrainer<span style='color:#fff'> Pro</span></div>
-          <div style='font-size:0.75rem; color:rgba(255,255,255,0.35); margin-top:2px;'>Plataforma de Rendimiento</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # LOGO ESTÉTICO
+        try:
+            st.image("frontend/assets/logo.png", use_container_width=True)
+        except:
+            st.markdown(f"""
+            <div style='padding:0 0.5rem 0.5rem;'>
+              <div style='font-size:1.4rem; font-weight:800; color:#00D4FF;'>⚡ SmartTrainer<span style='color:#fff'> Pro</span></div>
+              <div style='font-size:0.75rem; color:rgba(255,255,255,0.35); margin-top:2px;'>Plataforma de Rendimiento</div>
+            </div>
+            """, unsafe_allow_html=True)
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
         st.markdown(f"""
         <div style='padding:0.6rem 0.8rem; background:rgba(255,255,255,0.04); border-radius:10px; margin-bottom:0.5rem;'>

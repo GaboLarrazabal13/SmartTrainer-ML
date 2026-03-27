@@ -1,6 +1,8 @@
 """
-main.py - Servidor Principal FastAPI de SmartTrainer ML
--------------------------------------------------------
+SmartTrainer Pro - API Principal (FastAPI)
+------------------------------------------
+Motor encargado de la lógica de negocio, integración con Supabase (MLOps)
+y ejecución del motor de reglas clínicas para la prevención de lesiones.
 """
 import pandas as pd
 import numpy as np
@@ -159,7 +161,7 @@ def get_catalog(body_part: str | None = None, db: Session = Depends(get_db)):
     if body_part:
         query = query.filter(Exercise.body_part.ilike(f"%{body_part}%"))
     results = query.all()
-    # Serialize to list of dicts for front-end compatibility
+    # Serializamos para compatibilidad con el frontend
     return [{"id": r.id, "name": r.name, "body_part": r.body_part, "zonas": r.zonas, "cns_impact_factor": r.cns_impact_factor, "periph_impact_factor": r.periph_impact_factor} for r in results]
 
 @app.get("/injuries", tags=["Lesiones"])
