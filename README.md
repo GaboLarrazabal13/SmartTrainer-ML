@@ -1,6 +1,5 @@
 # 🤖 SmartTrainer Pro - MLOps Edition
 
-[![API Status](https://img.shields.io/badge/API-Render-informational?style=for-the-badge&logo=render&color=46E3B7)](https://smarttrainer-ml.onrender.com)
 [![Frontend Status](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://smarttrainer-ml-gb6dbbytpysvr6joc2nszc.streamlit.app/)
 
 ¡Bienvenido a la versión más avanzada de **SmartTrainer Pro**! Esta plataforma combina Machine Learning (XGBoost) con un Motor de Reglas Clínicas para prevenir lesiones y optimizar el rendimiento de atletas de elite.
