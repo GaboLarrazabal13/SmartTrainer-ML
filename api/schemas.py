@@ -28,7 +28,14 @@ class PredictionRequest(BaseModel):
     weight_kg: float = Field(..., ge=40.0, le=200.0, description="Peso corporal en kg.")
     experience_level: Literal["Principiante", "Intermedio", "Avanzado"]
     previous_condition: Literal[
-        "Ninguna", "Desgarro LCA", "Hernia Lumbar", "Tendinitis Hombro"
+        "Ninguna", 
+        "Hernia Lumbar (L4-S1)", 
+        "Desgarro LCA / Meniscos", 
+        "Tendinitis / Desgarro Manguito Rotador",
+        "Epicondilitis (Codo)",
+        "Tendinitis del Bíceps",
+        "Desgarro Pectoral",
+        "Desgarro de Isquiotibiales"
     ] = "Ninguna"
     rest_hours_since_last: int = Field(
         ..., ge=0, le=336, description="Horas de descanso desde la última sesión intensa."
@@ -66,3 +73,40 @@ class PredictionResponse(BaseModel):
     # Recomendaciones del motor de reglas
     alert_zones: List[ZoneAlert]
     general_recommendation: str
+
+# --- MODELOS DE USUARIO Y SESIÓN ---
+
+class UserCreate(BaseModel):
+    email: str
+    age: int = Field(..., ge=14, le=100)
+    weight: float = Field(..., ge=40, le=200)
+    height: float = Field(..., ge=1.0, le=2.5)
+    experience_level: Literal["Principiante", "Intermedio", "Avanzado"]
+    injury_history_id: Optional[int] = None
+
+class UserLogin(BaseModel):
+    email: str
+
+class WorkoutSessionCreate(BaseModel):
+    user_email: str
+    exercise_ids: str # JSON array en string
+    total_cns_fatigue: float
+    total_periph_fatigue: float
+    risk_probability: float
+
+# --- MODELOS ADMIN ---
+
+class ExerciseCreate(BaseModel):
+    name: str
+    body_part: str
+    zonas: str
+    cns_impact_factor: float
+    periph_impact_factor: float
+
+class InjuryConditionCreate(BaseModel):
+    zona_articulacion: str
+    lesion_comun: str
+    ejercicio_riesgo: str
+    nivel_esfuerzo_rpe: str
+    fatiga_estimada: str
+    tipo_fatiga: str

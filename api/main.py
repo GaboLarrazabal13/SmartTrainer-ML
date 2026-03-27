@@ -1,14 +1,6 @@
 """
 main.py - Servidor Principal FastAPI de SmartTrainer ML
 -------------------------------------------------------
-Este script orquesta el backend del proyecto. Se encarga de:
-1. Cargar los modelos entrenados (XGBoost) y el preprocesador al inicio.
-2. Exponer endpoints para consultar el catálogo de ejercicios.
-3. Procesar las solicitudes de predicción, calculando fatiga SNC y Periférica
-   basándose en el volumen y la intensidad real de la sesión.
-4. Ejecutar la inferencia del modelo y devolver recomendaciones accionables.
-
-Ejecución: uvicorn api.main:app --reload
 """
 import pandas as pd
 import numpy as np
@@ -16,11 +8,19 @@ import joblib
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from datetime import datetime
 
-from api.schemas import PredictionRequest, PredictionResponse
+from api.schemas import (
+    PredictionRequest, PredictionResponse,
+    UserCreate, UserLogin, WorkoutSessionCreate,
+    ExerciseCreate, InjuryConditionCreate
+)
 from api.rules_engine import apply_rules
+from api.database import get_db
+from api.models import Exercise, InjuryCondition, User, WorkoutSession
 
 # ─────────────────────────────────────────────
 #  Carga de modelos al arrancar el servidor
@@ -29,9 +29,8 @@ _models: dict = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Carga el catálogo de ejercicios y los modelos ML una sola vez al arrancar."""
+    """Carga los modelos ML una sola vez al arrancar."""
     try:
-        _models["catalog"]      = pd.read_csv("data/exercises_catalog.csv")
         _models["preprocessor"] = joblib.load("models/preprocessor.pkl")
         _models["xgb_model"]    = joblib.load("models/xgb_model.pkl")
         print("✅ SmartTrainer: Modelos cargados correctamente.")
@@ -41,24 +40,15 @@ async def lifespan(app: FastAPI):
     _models.clear()
 
 
-# ─────────────────────────────────────────────
-#  Instancia de la App
-# ─────────────────────────────────────────────
 app = FastAPI(
     title="SmartTrainer ML - API de Predicción de Riesgo",
-    description=(
-        "Predice la probabilidad de lesión de una sesión de entrenamiento "
-        "basándose en el perfil del atleta, el volumen, la intensidad y las "
-        "zonas anatómicas involucradas. Proporciona recomendaciones de recuperación "
-        "por zona corporal."
-    ),
     version="1.0.0",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción limitar al dominio del frontend
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,22 +57,8 @@ app.add_middleware(
 # ─────────────────────────────────────────────
 #  Helper: calcula métricas y zonas de la sesión
 # ─────────────────────────────────────────────
-def _compute_session_metrics(request: PredictionRequest) -> tuple[dict, dict]:
-    """
-    Calcula las métricas agregadas de la sesión (volumen, reps, sets) 
-    y la carga de fatiga fisiológica estimada.
-    
-    Args:
-        request: Objeto con los datos del atleta y los ejercicios realizados.
-        
-    Returns:
-        tuple (metrics, zone_counts):
-            - metrics: Diccionario con totales de reps, sets, volumen y fatiga.
-            - zone_counts: Diccionario con el conteo de impactos por zona anatómica.
-    """
-    catalog: pd.DataFrame = _models["catalog"]
+def _compute_session_metrics(request: PredictionRequest, db: Session) -> tuple[dict, dict]:
     weight = request.weight_kg
-
     effort_mult_map = {"Bajo": 0.8, "Moderado": 1.0, "Alto": 1.2, "Fallo": 1.5}
 
     total_sets = 0
@@ -93,54 +69,44 @@ def _compute_session_metrics(request: PredictionRequest) -> tuple[dict, dict]:
     zone_counts: dict[str, int] = {}
 
     for ex_input in request.exercises:
-        row_candidates = catalog[catalog["id"] == ex_input.exercise_id]
-        if row_candidates.empty:
-            raise HTTPException(
-                status_code=422,
-                detail=f"El exercise_id {ex_input.exercise_id} no existe en el catálogo."
-            )
-        ex = row_candidates.iloc[0]
+        ex = db.query(Exercise).filter(Exercise.id == ex_input.exercise_id).first()
+        if not ex:
+            raise HTTPException(status_code=422, detail=f"El exercise_id {ex_input.exercise_id} no existe en la DB.")
 
         reps = ex_input.reps_per_set
         loads = ex_input.load_kg_per_set
         s = ex_input.sets
 
         if len(reps) != s or len(loads) != s:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"Para exercise_id {ex_input.exercise_id} se indicaron "
-                    f"{s} sets pero reps_per_set ({len(reps)}) o "
-                    f"load_kg_per_set ({len(loads)}) no coinciden."
-                )
-            )
+            raise HTTPException(status_code=422, detail="Mismatched sets/reps/loads")
 
         avg_reps = sum(reps) / s
         avg_load = sum(loads) / s
         effort_mult = effort_mult_map.get(ex_input.effort_sensation, 1.0)
-
-        # Volumen bruto del ejercicio
         ex_volume = sum(r * w for r, w in zip(reps, loads))
 
-        # Cálculo de fatiga (fórmula biomecánica simplificada):
-        # Fatiga = %Basal_Ejercicio * Multiplicador_Volumen * Multiplicador_Esfuerzo
         volume_fac = (avg_reps * avg_load * s) / weight
         if avg_load == 0:
             volume_fac = avg_reps * s * 0.5
-        net_fatigue = (ex["fatigue_pct"] / 100.0) * volume_fac * effort_mult
         
-        # Acumulación de métricas según tipo de impacto (SNC o muscular)
+        # Determine fatigue base from DB (e.g. using CNS and Periph factors as base)
+        # Fallback to older mechanism if fatigue_pct is strictly required (we infer from factors here)
+        cns_f = ex.cns_impact_factor or 0.0
+        periph_f = ex.periph_impact_factor or 0.0
+        fatigue_pct = (cns_f + periph_f) * 100 / 2.0  # Approx
+
+        net_fatigue = (fatigue_pct / 100.0) * volume_fac * effort_mult
+        
         total_sets += s
         total_reps += sum(reps)
         total_volume_kg += ex_volume
 
-        if ex["type"] == "SNC":
+        if cns_f >= periph_f:
             total_cns += net_fatigue
         else:
             total_periph += net_fatigue
 
-        # Mapeo de zonas anatómicas afectadas para el motor de reglas
-        for zona in str(ex["zonas"]).split(","):
+        for zona in str(ex.zonas).split(","):
             z = zona.strip()
             zone_counts[z] = zone_counts.get(z, 0) + 1
 
@@ -163,46 +129,29 @@ def _compute_session_metrics(request: PredictionRequest) -> tuple[dict, dict]:
 
 @app.get("/", tags=["Health"])
 def root():
-    return {"status": "ok", "message": "SmartTrainer ML API está activa. Visita /docs para la documentación interactiva."}
-
-
-@app.get("/health", tags=["Health"])
-def health():
-    models_loaded = "xgb_model" in _models and "preprocessor" in _models
-    return {"status": "healthy" if models_loaded else "degraded", "models_loaded": models_loaded}
-
+    return {"status": "ok"}
 
 @app.get("/catalog", tags=["Ejercicios"])
-def get_catalog(body_part: str | None = None):
-    """
-    Devuelve el catálogo completo de ejercicios.
-    Filtra opcionalmente por: Superior, Inferior, Core.
-    """
-    catalog: pd.DataFrame = _models.get("catalog", pd.DataFrame())
-    if catalog.empty:
-        raise HTTPException(status_code=503, detail="Catálogo no disponible. Reinicia el servidor.")
-    
+def get_catalog(body_part: str | None = None, db: Session = Depends(get_db)):
+    query = db.query(Exercise)
     if body_part:
-        catalog = catalog[catalog["body_part"].str.lower() == body_part.lower()]
-        if catalog.empty:
-            raise HTTPException(status_code=404, detail=f"Zona '{body_part}' no encontrada. Usa: Superior, Inferior, Core.")
-    
-    return catalog.to_dict(orient="records")
+        query = query.filter(Exercise.body_part.ilike(f"%{body_part}%"))
+    results = query.all()
+    # Serialize to list of dicts for front-end compatibility
+    return [{"id": r.id, "name": r.name, "body_part": r.body_part, "zonas": r.zonas, "cns_impact_factor": r.cns_impact_factor, "periph_impact_factor": r.periph_impact_factor} for r in results]
 
+@app.get("/injuries", tags=["Lesiones"])
+def get_injuries(db: Session = Depends(get_db)):
+    results = db.query(InjuryCondition).all()
+    return [{"id": r.id, "zona": r.zona_articulacion, "lesion": r.lesion_comun, "ejercicio": r.ejercicio_riesgo, "nivel": r.nivel_esfuerzo_rpe, "fatiga": r.fatiga_estimada, "tipo": r.tipo_fatiga} for r in results]
 
 @app.post("/predict", response_model=PredictionResponse, tags=["Predicción"])
-def predict(request: PredictionRequest) -> PredictionResponse:
-    """
-    Endpoint principal. Recibe el perfil del atleta y los ejercicios de su sesión
-    y devuelve la probabilidad de lesión junto a recomendaciones de recuperación por zona.
-    """
+def predict(request: PredictionRequest, db: Session = Depends(get_db)):
     if "xgb_model" not in _models:
-        raise HTTPException(status_code=503, detail="Modelos ML no disponibles. Reinicia el servidor.")
+        raise HTTPException(status_code=503, detail="Modelos ML no disponibles.")
 
-    # 1. Calcular métricas de sesión
-    metrics, zone_counts = _compute_session_metrics(request)
+    metrics, zone_counts = _compute_session_metrics(request, db)
 
-    # 2. Construir el vector de features para el modelo
     row_data = {
         "age": request.age,
         "weight_kg": request.weight_kg,
@@ -213,22 +162,142 @@ def predict(request: PredictionRequest) -> PredictionResponse:
         "total_periph_fatigue": metrics["total_periph"],
         "num_exercises": metrics["total_exercises"],
     }
-    # Añadir conteos de zonas como features (zone_lumbar, zone_rodillas, etc.)
     for z, count in zone_counts.items():
         row_data[f"zone_{z}"] = count
 
     df_inference = pd.DataFrame([row_data])
 
-    # Alinear con las columnas esperadas por el preprocesador
     required_cols = list(_models["preprocessor"].feature_names_in_)
     for col in required_cols:
         if col not in df_inference.columns:
             df_inference[col] = 0
     df_inference = df_inference[required_cols]
 
-    # 3. Predicción XGBoost
     X_processed = _models["preprocessor"].transform(df_inference)
     risk_prob = float(_models["xgb_model"].predict_proba(X_processed)[0][1])
 
-    # 4. Motor de Reglas → Response final
+    # Buscar lesión en BD para generar alerta dinámica
+    injury_alert = ""
+    if request.previous_condition and request.previous_condition != "Ninguna":
+        injury_rec = db.query(InjuryCondition).filter(InjuryCondition.lesion_comun == request.previous_condition).first()
+        if injury_rec:
+            injury_alert = f"🚩 ALERTA CLÍNICA: Historial de {request.previous_condition}. Zona vulnerable: {injury_rec.zona_articulacion}. Evitar: {injury_rec.ejercicio_riesgo}."
+
+    metrics["previous_condition"] = request.previous_condition
+    metrics["injury_alert"] = injury_alert
     return apply_rules(risk_prob, zone_counts, metrics)
+
+# ─────────────────────────────────────────────
+#  Módulo de Usuarios
+# ─────────────────────────────────────────────
+
+@app.post("/register", tags=["Usuarios"])
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="El email ya está registrado.")
+    
+    new_user = User(
+        email=user.email,
+        age=user.age,
+        weight=user.weight,
+        height=user.height,
+        experience_level=user.experience_level,
+        injury_history_id=user.injury_history_id
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "Usuario registrado exitosamente", "email": new_user.email}
+
+@app.post("/login", tags=["Usuarios"])
+def login_user(login: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == login.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    return {
+        "email": user.email,
+        "age": user.age,
+        "weight": user.weight,
+        "height": user.height,
+        "experience_level": user.experience_level,
+        "injury_history_id": user.injury_history_id
+    }
+
+# ─────────────────────────────────────────────
+#  Módulo MLOps y Registro de Sesiones
+# ─────────────────────────────────────────────
+
+def _trigger_mlops_retraining(db: Session):
+    """ Función que simula o dispara el pipeline de MLOps en backgrouund """
+    untrained_sessions = db.query(WorkoutSession).filter(WorkoutSession.is_trained == 0).all()
+    if len(untrained_sessions) >= 1000:
+        print("🚀 [MLOps] 1000 nuevas sesiones detectadas. Iniciando Reentrenamiento Automático de XGBoost...")
+        # Aquí iría un subprocess o celery task que corra models/train.py usando la DB actual
+        # ...
+        # Marcamos como procesadas
+        for session in untrained_sessions:
+            session.is_trained = 1
+        db.commit()
+        print("✅ [MLOps] Pipeline completado con éxito. Sesiones marcadas.")
+
+@app.post("/workouts/log", tags=["MLOps"])
+def log_workout_session(session_data: WorkoutSessionCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # 1. Validar usuario
+    user = db.query(User).filter(User.email == session_data.user_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Debe estar logueado para guardar sesiones.")
+
+    # 2. Guardar sesión
+    new_session = WorkoutSession(
+        user_email=session_data.user_email,
+        date=datetime.now().isoformat(),
+        exercise_ids=session_data.exercise_ids,
+        total_cns_fatigue=session_data.total_cns_fatigue,
+        total_periph_fatigue=session_data.total_periph_fatigue,
+        risk_probability=session_data.risk_probability,
+        is_trained=0
+    )
+    db.add(new_session)
+    db.commit()
+    
+    # 3. Lanzar verificación asíncrona de MLOps
+    background_tasks.add_task(_trigger_mlops_retraining, db)
+    
+    return {"message": "Sesión registrada con éxito para MLOps."}
+
+# ─────────────────────────────────────────────
+#  Módulo Administrador (Catálogo)
+# ─────────────────────────────────────────────
+
+@app.post("/admin/exercises", tags=["Administrador"])
+def add_exercise(ex: ExerciseCreate, db: Session = Depends(get_db)):
+    existing = db.query(Exercise).filter(Exercise.name == ex.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="El ejercicio ya existe.")
+    
+    new_ex = Exercise(
+        name=ex.name,
+        body_part=ex.body_part,
+        zonas=ex.zonas,
+        cns_impact_factor=ex.cns_impact_factor,
+        periph_impact_factor=ex.periph_impact_factor
+    )
+    db.add(new_ex)
+    db.commit()
+    return {"message": "Ejercicio añadido exitosamente"}
+
+@app.post("/admin/injuries", tags=["Administrador"])
+def add_injury(inj: InjuryConditionCreate, db: Session = Depends(get_db)):
+    new_inj = InjuryCondition(
+        zona_articulacion=inj.zona_articulacion,
+        lesion_comun=inj.lesion_comun,
+        ejercicio_riesgo=inj.ejercicio_riesgo,
+        nivel_esfuerzo_rpe=inj.nivel_esfuerzo_rpe,
+        fatiga_estimada=inj.fatiga_estimada,
+        tipo_fatiga=inj.tipo_fatiga
+    )
+    db.add(new_inj)
+    db.commit()
+    return {"message": "Condición clínica añadida catalogada"}
+

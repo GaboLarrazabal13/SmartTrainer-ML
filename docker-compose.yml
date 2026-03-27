@@ -9,8 +9,11 @@ services:
     volumes:
       - ./data:/app/data
       - ./models:/app/models
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
+      # Local dependency on 'db' removed. Now uses DATABASE_URL directly from .env (Supabase)
     networks:
       - smarttrainer_net
 
@@ -21,6 +24,8 @@ services:
     container_name: smarttrainer_web
     ports:
       - "8501:8501"
+    env_file:
+      - .env
     environment:
       - API_URL=http://api:8000
     depends_on:

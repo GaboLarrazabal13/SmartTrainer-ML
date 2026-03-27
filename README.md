@@ -13,7 +13,6 @@
 - **Inferencia Probalística**: No solo detecta si hay riesgo, sino que calcula un **% de probabilidad** exacto (XGBoost).
 - **Motor de Reglas Dinámico**: Identifica sobrecarga local en zonas anatómicas (Lumbar, Rodillas, Hombros, etc.) basándose en el volumen real de la sesión.
 - **Dashboard Interactivo**: Interfaz moderna en **Streamlit** (Dark Mode) con indicadores de riesgo, métricas de volumen y gráficos de impacto anatómico.
-- **Investigación Transparente**: Incluye un **Jupyter Notebook** detallado con el EDA, limpieza de datos y justificación científica de cada variable.
 - **Backend Robusto**: API desarrollada con **FastAPI** y validación de tipos vía Pydantic.
 
 ---
@@ -24,7 +23,6 @@
 - `data/`: Generador de bases de datos relacionales y catálogos de ejercicios.
 - `models/`: Scripts de entrenamiento, preprocesamiento y modelos serializados (.pkl).
 - `frontend/`: Aplicación visual en Streamlit.
-- `notebooks/`: Investigaciones de Ciencia de Datos y visualizaciones (SHAP).
 - `mlruns/`: Trazabilidad de experimentos mediante MLflow.
 
 ---
@@ -129,8 +127,14 @@ El proceso de desarrollo siguió esta metodología:
 
 > [!NOTE]
 > Puedes consultar el cuaderno de investigación de NotebookLM utilizado para este proyecto aquí: 
-> **[Enlace al Cuaderno de SmartTrainer](https://notebooklm.google.com/notebook/d8b1ca55-fe6c-4f6e-ac1e-cc82e7e664a3)** *(Nota: Reemplaza con el enlace real si es compartido públicamente).*
+> **[Enlace al Cuaderno de SmartTrainer](https://notebooklm.google.com/notebook/fa80e96a-9f3c-4293-b432-2e32b2994c28?authuser=1)** *(Nota: Reemplaza con el enlace real si es compartido públicamente).*
 
 ---
 
 Desarrollado con ❤️ para la comunidad de entrenamiento de fuerza basado en evidencia.
+### Actualización Biofísica 2026 (Elite)
+En la Fase 14, se integraron parámetros de la nota **"Anatomía del Riesgo"** (NotebookLM). El sistema ahora modela:
+- **Fatiga del SNC**: Crítica en ejercicios multiarticulares pesados (>90% fatiga).
+- **Fatiga Periférica**: Acumulada en ejercicios de aislamiento, precursora de tendinitis.
+- **RPE Modulator**: El esfuerzo percibido de 9-10 escala exponencialmente el riesgo y el costo de recuperación.
+- **Protocolos de Recuperación**: Diferenciados por zona y tipo de impacto neuromuscular.

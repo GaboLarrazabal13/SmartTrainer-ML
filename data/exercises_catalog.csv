@@ -1,51 +1,51 @@
 id,name,fatigue_pct,type,category,zonas,body_part
-1,Peso Muerto,95,SNC,Heavy_Lower,"columna,lumbar,agarre",Inferior
-2,Sentadilla,90,SNC,Heavy_Lower,"rodillas,lumbar,cadera",Inferior
-3,Power Clean,90,SNC,Heavy_Compound,"muñecas,hombros,lumbar,tobillos",Inferior
-4,Peso Muerto Sumo,90,SNC,Heavy_Lower,"aductores,cadera,lumbar",Inferior
-5,Sentadilla Frontal,90,SNC,Heavy_Lower,"rodillas,columna,muñecas",Inferior
-6,Peso Muerto Rumano,85,SNC,Heavy_Lower,"lumbar,isquios",Inferior
-7,Sentadilla Bulgara,85,SNC,Heavy_Lower,"rodillas,cadera,cuadriceps",Inferior
-8,Press Banca,80,SNC,Heavy_Upper,"hombros,pecho,muñecas",Superior
-9,Remo con Barra Inclinado,80,SNC,Heavy_Upper,"lumbar,hombros",Superior
-10,Press Militar,80,SNC,Heavy_Upper,"hombros,cervicales",Superior
-11,Kettlebell Swing,80,SNC,Heavy_Lower,"lumbar,cadera,gluteos",Inferior
-12,Hip Thrust,75,SNC,Heavy_Lower,"cadera,lumbar",Inferior
-13,Press Banca Mancuernas,75,SNC,Heavy_Upper,"hombros,muñecas",Superior
-14,Dominadas,70,SNC,Heavy_Upper_BW,"dorsales,codos,hombros",Superior
-15,Prensa Piernas,70,SNC,Heavy_Lower,"rodillas,lumbar",Inferior
-16,Remo con Mancuerna,70,SNC,Heavy_Upper,"espalda,hombros",Superior
-17,Zancadas,65,Periferica,Medium_Lower,"rodillas,tobillos",Inferior
-18,Press Inclinado Manc.,60,Periferica,Medium_Upper,"hombros,pecho",Superior
-19,Fondos (Dips),60,Periferica,Medium_Upper_BW,"pecho,hombros,codos",Superior
-20,Arnold Press,60,Periferica,Medium_Upper,hombros,Superior
-21,Chin-ups,60,Periferica,Medium_Upper_BW,"codos,biceps,hombros",Superior
-22,Goblet Squat,60,Periferica,Medium_Lower,"rodillas,columna",Inferior
-23,Step-ups,60,Periferica,Medium_Lower,"rodillas,tobillos",Inferior
-24,Jalon al Pecho,55,Periferica,Medium_Upper,"dorsales,hombros",Superior
-25,Remo al Menton,55,Periferica,Isolation,hombros,Superior
-26,Skull Crushers,50,Periferica,Isolation,"codos,triceps",Superior
-27,Press Pecho Maquina,50,Periferica,Medium_Upper,"pecho,codos",Superior
-28,Extension Piernas,45,Periferica,Isolation,rodillas,Inferior
-29,Curl Piernas,45,Periferica,Isolation,isquios,Inferior
-30,Preacher Curl,45,Periferica,Isolation,"codos,biceps",Superior
-31,Remo Invertido,40,Periferica,Medium_Upper_BW,"espalda,brazos",Superior
-32,Aperturas Flyes,35,Periferica,Isolation,"hombros,pecho",Superior
-33,Curl Biceps Barra,30,Periferica,Isolation,"muñecas,codos",Superior
-34,Extension Triceps,30,Periferica,Isolation,"codos,hombros",Superior
-35,Elevaciones Laterales,30,Periferica,Isolation,hombros,Superior
-36,Hammer Curl,30,Periferica,Isolation,"muñecas,codos",Superior
-37,Cable Crossovers,30,Periferica,Isolation,"hombros,pecho",Superior
-38,Face Pulls,25,Periferica,Isolation,"hombros,espalda",Superior
-39,Flexiones,25,Periferica,Medium_Upper_BW,"muñecas,lumbar,pecho",Superior
-40,Leg Raises,30,Periferica,Core,"lumbar,cadera",Core
-41,Elevacion Talones,20,Periferica,Isolation,tobillos,Inferior
-42,Crunches,20,Periferica,Core,"cervical,lumbar",Core
-43,Russian Twists,25,Periferica,Core,lumbar,Core
-44,Plancha,15,Periferica,Core_Time,"abdomen,hombros",Core
-45,Superman Extension,15,Periferica,Core_Time,"lumbar,cuello",Core
-46,Bird-Dog,10,Periferica,Core_Time,"lumbar,core",Core
-47,Dead Bug,10,Periferica,Core_Time,"lumbar,core",Core
-48,Scapular Push-ups,10,Periferica,Core_Time,"escapula,hombros",Superior
-49,Prone T / Y,10,Periferica,Core_Time,"escapula,hombros",Superior
+1,Peso Muerto (Convencional),98,SNC,Heavy_Lower,"columna,lumbar,agarre",Inferior
+2,Sentadilla con Barra,93,SNC,Heavy_Lower,"rodillas,lumbar,cadera",Inferior
+3,Power Clean,93,SNC,Heavy_Compound,"muñecas,hombros,lumbar,tobillos",Inferior
+4,Peso Muerto Sumo,93,SNC,Heavy_Lower,"aductores,cadera,lumbar",Inferior
+5,Sentadilla Frontal,93,SNC,Heavy_Lower,"rodillas,columna,muñecas",Inferior
+6,Peso Muerto Rumano,88,SNC,Heavy_Lower,"lumbar,isquios",Inferior
+7,Sentadilla Búlgara,88,SNC,Heavy_Lower,"rodillas,cadera,cuadriceps",Inferior
+8,Press de Banca (Barra),83,SNC,Heavy_Upper,"hombros,pecho,muñecas",Superior
+9,Remo con Barra Inclinado,83,SNC,Heavy_Upper,"lumbar,hombros",Superior
+10,Press Militar de Pie,83,SNC,Heavy_Upper,"hombros,cervicales",Superior
+11,Kettlebell Swing,83,SNC,Heavy_Lower,"lumbar,cadera,gluteos",Inferior
+12,Hip Thrust (Barra),78,SNC,Heavy_Lower,"cadera,lumbar",Inferior
+13,Press de Banca (Manc.),78,SNC,Heavy_Upper,"hombros,muñecas",Superior
+14,Dominadas (Pull-ups),73,SNC,Heavy_Upper_BW,"dorsales,codos,hombros",Superior
+15,Prensa de Piernas,73,SNC,Heavy_Lower,"rodillas,lumbar",Inferior
+16,Remo con Mancuerna,73,SNC,Heavy_Upper,"espalda,hombros",Superior
+17,Zancadas (Lunges),68,Periferica,Medium_Lower,"rodillas,tobillos",Inferior
+18,Press Inclinado (Manc.),63,Periferica,Medium_Upper,"hombros,pecho",Superior
+19,Fondos (Dips),63,Periferica,Medium_Upper_BW,"pecho,hombros,codos",Superior
+20,Arnold Press,63,Periferica,Medium_Upper,hombros,Superior
+21,Chin-ups,63,Periferica,Medium_Upper_BW,"codos,biceps,hombros",Superior
+22,Goblet Squat,63,Periferica,Medium_Lower,"rodillas,columna",Inferior
+23,Step-ups,63,Periferica,Medium_Lower,"rodillas,tobillos",Inferior
+24,Jalón al Pecho,58,Periferica,Medium_Upper,"dorsales,hombros",Superior
+25,Remo al Mentón,58,Periferica,Isolation,"hombros,cervical",Superior
+26,Skull Crushers,53,Periferica,Isolation,"codos,triceps",Superior
+27,Press de Pecho (Máq.),53,Periferica,Medium_Upper,"pecho,codos",Superior
+28,Extensión de Piernas,48,Periferica,Isolation,rodillas,Inferior
+29,Curl de Piernas,48,Periferica,Isolation,isquios,Inferior
+30,Preacher Curl,48,Periferica,Isolation,"codos,biceps",Superior
+31,Remo Invertido,43,Periferica,Medium_Upper_BW,"espalda,brazos",Superior
+32,Aperturas (Flyes),38,Periferica,Isolation,"hombros,pecho",Superior
+33,Curl de Bíceps (Barra),33,Periferica,Isolation,"muñecas,codos",Superior
+34,Extensión Tríceps,33,Periferica,Isolation,"codos,hombros",Superior
+35,Elevaciones Laterales,33,Periferica,Isolation,hombros,Superior
+36,Hammer Curl,33,Periferica,Isolation,"muñecas,codos",Superior
+37,Cable Crossovers,33,Periferica,Isolation,"hombros,pecho",Superior
+38,Face Pulls,28,Periferica,Isolation,"hombros,espalda",Superior
+39,Flexiones (Push-ups),28,Periferica,Medium_Upper_BW,"muñecas,lumbar,pecho",Superior
+40,Leg Raises,33,Periferica,Core,"lumbar,cadera",Core
+41,Elevación Talones,23,Periferica,Isolation,tobillos,Inferior
+42,Crunches,23,Periferica,Core,"cervical,lumbar",Core
+43,Russian Twists,28,Periferica,Core,lumbar,Core
+44,Plancha (Plank),18,Periferica,Core_Time,"abdomen,hombros",Core
+45,Superman Extension,18,Periferica,Core_Time,"lumbar,cuello",Core
+46,Bird-Dog,13,Periferica,Core_Time,"lumbar,core",Core
+47,Dead Bug,13,Periferica,Core_Time,"lumbar,core",Core
+48,Scapular Push-ups,13,Periferica,Core_Time,"escapula,hombros",Superior
+49,Prone T / Y,13,Periferica,Core_Time,"escapula,hombros",Superior
 50,Abdominal Bracing,5,Periferica,Core_Time,core,Core

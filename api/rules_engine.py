@@ -20,27 +20,26 @@ THRESHOLDS = {
     "CRÍTICO":  (0.70, 1.01),
 }
 
-# Horas de descanso recomendadas por zona según impacto (>=2 ejercicios)
+# Horas de descanso recomendadas por zona según impacto (NotebookLM 2026)
 ZONE_REST_MAP = {
-    "lumbar":        (72, "Evitar ejercicios de cadena posterior: Peso Muerto, Remo Inclinado, Sentadillas."),
-    "columna":       (72, "Evitar cualquier ejercicio axial con carga sobre la columna vertebral."),
-    "rodillas":      (48, "Evitar sentadillas, prensa y cualquier flexión de rodilla con carga."),
-    "hombros":       (48, "Evitar press militar, elevaciones laterales y remos por encima de la cabeza."),
-    "cadera":        (48, "Evitar hip thrust, peso muerto sumo y ejercicios unilaterales de cadera."),
-    "codos":         (24, "Evitar curls y extensiones de tríceps con carga media-alta."),
-    "muñecas":       (24, "Reducir peso en ejercicios de agarre y evitar pronación forzada."),
-    "cervicales":    (48, "Evitar press militar, dominadas detrás de la nuca y jalones verticales."),
-    "isquios":       (48, "Evitar peso muerto rumano, leg curl y zancadas profundas."),
-    "pecho":         (48, "Evitar press de banca y aperturas hasta que la tensión remita."),
-    "dorsales":      (48, "Evitar jalones y remos hasta recuperación completa."),
-    "tobillos":      (24, "Reducir ejercicios con saltos o cambios de dirección bruscos."),
-    "aductores":     (24, "Evitar sentadilla sumo y ejercicios de aducción con carga."),
-    "core":          (24, "Reducir plancha y trabajo de estabilización si hay hiperlordosis."),
-    "abdomen":       (24, "Reducir crunches y leg raises si hay dolor lumbar asociado.")
+    "lumbar":        (72, "⛔ RIESGO SNC ALTO: Evitar Peso Muerto y Sentadilla. Peligro de hernia L4-L5."),
+    "columna":       (72, "⛔ RIESGO SISTÉMICO: Evitar cargas axiales. Priorizar estabilidad de core."),
+    "rodillas":      (48, "⚠️ RIESGO LCA/Menisco: Evitar Sentadilla y Prensa. Vigilar valgo dinámico."),
+    "hombros":       (48, "⚠️ RIESGO MANGUITO: Evitar Press Militar y Press Banca a 90°. Usar 'thumbs up' en laterales."),
+    "cadera":        (48, "Evitar Hip Thrust y Peso Muerto Sumo. Vigilar pinzamiento acetabular."),
+    "codos":         (24, "Riesgo de Epicondilitis: Reducir curls y remos pesados. Revisar técnica de agarre."),
+    "muñecas":       (24, "Riesgo de Tendinitis: Evitar hiperextensión en Press Banca y Curls pesados."),
+    "cervicales":    (48, "Evitar Press tras nuca y tirones de cuello en Crunches. Peligro de distensión."),
+    "isquios":       (48, "Riesgo de Desgarro: Evitar P. Muerto Rumano y Leg Curl explosivo."),
+    "pecho":         (48, "Riesgo de Desgarro Pectoral: Evitar Press de Banca pesado con rebote."),
+    "dorsales":      (48, "Evitar Dominadas con rotación interna excesiva si hay inestabilidad."),
+    "tobillos":      (24, "Riesgo de Aquiles: Evitar saltos al cajón y aceleraciones súbitas."),
+    "aductores":     (24, "Evitar Sentadilla Sumo. Riesgo de distensión en aductores."),
+    "core":          (24, "Mantener 'Abdominal Bracing'. Evitar arqueo lumbar en levantamientos."),
+    "abdomen":       (24, "Priorizar 'Dead Bug' o 'Bird-Dog' si hay antecedentes de dolor lumbar.")
 }
 
-DEFAULT_REST = (24, "Evitar ejercicios directos sobre esta zona hasta la recuperación.")
-
+DEFAULT_REST = (24, "Seguir protocolo de recuperación periférica estándar: 24-48h.")
 
 def classify_risk(probability: float) -> str:
     for level, (lo, hi) in THRESHOLDS.items():
@@ -64,7 +63,7 @@ def build_zone_alerts(zone_counts: dict[str, int]) -> list[ZoneAlert]:
     return alerts
 
 
-def build_general_recommendation(risk_level: str, alert_zones: list[ZoneAlert], rest_hours: int) -> str:
+def build_general_recommendation(risk_level: str, alert_zones: list[ZoneAlert], rest_hours: int, condition: str = "Ninguna") -> str:
     if risk_level == "CRÍTICO":
         if alert_zones:
             zones = ", ".join(a.zone for a in alert_zones)
@@ -88,10 +87,16 @@ def build_general_recommendation(risk_level: str, alert_zones: list[ZoneAlert], 
             "Considera una sesión de recuperación activa (movilidad, cardio suave) antes de volver a cargar con alta intensidad."
         )
     else:
-        return (
+        base_rec = (
             "🟢 Excelente. Sesión en zona ÓPTIMA de entrenamiento. "
             "Tu carga, volumen y descanso están bien balanceados. Puedes progresar en tu próxima sesión."
         )
+    
+    # Añadir alerta específica por historial
+    history_alert = condition  # Condition here actually holds the string of metric["injury_alert"] now (we will rename parameter in the caller or here)
+    if history_alert and history_alert != "Ninguna":
+        return f"{history_alert}\n\n{base_rec}"
+    return base_rec
 
 
 def apply_rules(
@@ -102,7 +107,10 @@ def apply_rules(
     """Punto de entrada principal del motor de reglas."""
     risk_level = classify_risk(risk_prob)
     alert_zones = build_zone_alerts(zone_counts)
-    general_rec = build_general_recommendation(risk_level, alert_zones, metrics["rest_hours"])
+    
+    # La condición en sí ahora pasa el mensaje compilado por la BD (si existe)
+    injury_alert = metrics.get("injury_alert", "")
+    general_rec = build_general_recommendation(risk_level, alert_zones, metrics["rest_hours"], injury_alert)
 
     return PredictionResponse(
         injury_risk_probability=round(risk_prob, 4),

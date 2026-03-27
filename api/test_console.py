@@ -16,6 +16,7 @@ import numpy as np
 import joblib
 import os
 import xgboost as xgb
+from api.rules_engine import apply_rules
 
 def run_console():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -45,9 +46,18 @@ def run_console():
     exp_map = {"1": "Principiante", "2": "Intermedio", "3": "Avanzado"}
     experience = exp_map.get(exp_opt, "Intermedio")
     
-    print("Condición previa: 1. Ninguna | 2. Desgarro LCA | 3. Hernia Lumbar | 4. Tendinitis Hombro")
+    print("Condición previa: 1. Ninguna | 2. Hernia L4-S1 | 3. LCA/Meniscos | 4. Manguito Rotador | 5. Epicondilitis | 6. Bíceps | 7. Pectoral | 8. Isquios")
     cond_opt = input("Opción [1]: ")
-    cond_map = {"1": "Ninguna", "2": "Desgarro LCA", "3": "Hernia Lumbar", "4": "Tendinitis Hombro"}
+    cond_map = {
+        "1": "Ninguna", 
+        "2": "Hernia Lumbar (L4-S1)", 
+        "3": "Desgarro LCA / Meniscos", 
+        "4": "Tendinitis / Desgarro Manguito Rotador",
+        "5": "Epicondilitis (Codo)",
+        "6": "Tendinitis del Bíceps",
+        "7": "Desgarro Pectoral",
+        "8": "Desgarro de Isquiotibiales"
+    }
     condition = cond_map.get(cond_opt, "Ninguna")
 
     rh_str = input("Horas de descanso desde la última sesión intensa (ej. 48): ").strip()
@@ -179,36 +189,38 @@ def run_console():
         print("❌ Error transformando datos. Detalles:", e)
         return
         
+    # 4. Motor de Reglas (Lógica Centralizada)
+    metrics = {
+        "total_exercises": len(session_exercises),
+        "total_sets": total_sets_session,
+        "total_reps": total_reps_session,
+        "total_volume_kg": total_volume_session,
+        "total_cns": total_cns,
+        "total_periph": total_periph,
+        "rest_hours": rest_h,
+        "previous_condition": condition
+    }
+    
+    response = apply_rules(risk_prob, {z.replace('zone_', ''): count for z, count in zone_counts.items()}, metrics)
+
     print(f"📋 RESUMEN DE RENDIMIENTO:")
-    print(f"- Ejercicios realizados: {len(session_exercises)}")
-    print(f"- Sets totales: {total_sets_session}")
-    print(f"- Repeticiones totales: {total_reps_session}")
-    print(f"- Volumen de peso total: {total_volume_session:,.1f} kg (Tonelaje)")
+    print(f"- Ejercicios realizados: {response.total_exercises}")
+    print(f"- Sets totales: {response.total_sets}")
+    print(f"- Repeticiones totales: {response.total_reps}")
+    print(f"- Volumen total: {response.total_volume_kg:,.1f} kg")
     
     print(f"\n🧠 CARGA FISIOLÓGICA:")
-    print(f"- Impacto estimado SNC (Cerebral): {total_cns:.1f}")
-    print(f"- Impacto estimado Periférico (Músculo): {total_periph:.1f}")
+    print(f"- Impacto SNC (Sistémico): {response.estimated_cns_load:.1f}")
+    print(f"- Impacto Periférico (Local): {response.estimated_peripheral_load:.1f}")
     
-    print(f"\n⚡ PROBABILIDAD PREDICHA DE LESIÓN/SOBRECARGA: {risk_prob*100:.1f}%\n")
+    print(f"\n⚡ PROBABILIDAD DE RIESGO: {response.injury_risk_probability*100:.1f}% [{response.risk_level}]")
     
-    zonas_afectadas = {z.replace('zone_', ''): count for z, count in zone_counts.items() if count >= 2}
+    if response.alert_zones:
+        print("\n🧬 ALERTAS ANATÓMICAS:")
+        for alert in response.alert_zones:
+            print(f"  📍 {alert.zone}: {alert.recommendation} (Descanso: {alert.rest_hours_suggested}h)")
     
-    if risk_prob > 0.50 and len(zonas_afectadas) > 0:
-        zonas_str = ", ".join(zonas_afectadas.keys()).upper()
-        print(f"⛔ ALERTA ROJA ⛔")
-        print(f"=> Sobrecarga masiva detectada en: {zonas_str}.")
-        print(f"=> RECOMENDACIÓN CLÍNICA: Descansar mínimo de 72h para estas articulaciones. Si entrenas mañana, que sea activo y alejado de estas áreas.")
-    elif risk_prob > 0.50:
-        print(f"⚠️ ALERTA NARANJA ⚠️")
-        print(f"=> Fatiga sistémica crítica. Tu carga de hoy supera tu capacidad de recuperación ({rest_h}h).")
-    else:
-        if len(zonas_afectadas) > 0:
-             zonas_str = ", ".join(zonas_afectadas.keys()).upper()
-             print(f"🟢 ENTRENAMIENTO ÓPTIMO 🟢")
-             print(f"=> Las zonas [{zonas_str}] recibirán estimulo denso pero dentro de los límites de riesgo. Buen trabajo.")
-        else:
-             print("🟢 ENTRENAMIENTO ÓPTIMO 🟢")
-             print("=> Volumen totalmente seguro para tus articulaciones. Puedes subir intensidades en tu siguiente sesión si tu cuerpo lo permite.")
+    print(f"\n💡 RECOMENDACIÓN GENERAL: {response.general_recommendation}")
 
 if __name__ == '__main__':
     run_console()
