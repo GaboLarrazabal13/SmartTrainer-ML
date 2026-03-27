@@ -1,14 +1,15 @@
 """
 SmartTrainer Pro - Frontend
 ----------------------------------
-Versión Escalable con Dashboard completamente renovado y navegación premium.
+Versión Escalable con Dashboard plenamente funcional y gestión de sesiones por fecha.
 """
 import streamlit as st
 import requests
 import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 import json
+import re
+from datetime import datetime
 
 # ==========================================
 # CONFIG DEL ENTORNO
@@ -16,6 +17,14 @@ import json
 API_BASE = st.secrets.get("API_URL", "https://smarttrainer-ml.onrender.com")
 
 st.set_page_config(page_title="SmartTrainer Pro", page_icon="⚡", layout="wide")
+
+def clean_zone_label(label):
+    """Limpia etiquetas como '[Superior] Codos [5' a 'CODOS'"""
+    # Remueve contenido entre corchetes [...]
+    label = re.sub(r'\[.*?\]', '', label)
+    # Remueve números y caracteres especiales
+    label = re.sub(r'[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]', '', label)
+    return label.strip().upper()
 
 st.markdown("""
 <style>
@@ -28,30 +37,6 @@ st.markdown("""
   [data-testid="stSidebar"] { background-color: #0B0E14 !important; border-right: 1px solid rgba(255,255,255,0.06); }
   [data-testid="stSidebar"] > div { padding-top: 1.5rem; }
   
-  /* Ocultar el radio nativo de Streamlit */
-  [data-testid="stSidebar"] .stRadio > label { display: none; }
-  [data-testid="stSidebar"] .stRadio > div { gap: 0 !important; }
-  [data-testid="stSidebar"] .stRadio div[role="radiogroup"] { flex-direction: column; gap: 0; }
-  [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-    background: transparent;
-    border: none;
-    border-radius: 10px;
-    padding: 0.65rem 1rem;
-    margin: 0.1rem 0;
-    color: rgba(255,255,255,0.55);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.88rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-  }
-  [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
-    background: rgba(0,212,255,0.08);
-    color: #fff;
-  }
-  [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-baseweb="radio"] span:first-child { display: none; }
-  
   /* Botones generales */
   div.stButton > button {
     background: linear-gradient(135deg, #00D4FF 0%, #0052D4 100%) !important;
@@ -60,11 +45,6 @@ st.markdown("""
     transition: opacity 0.2s;
   }
   div.stButton > button:hover { opacity: 0.85; }
-  div.stButton > button[kind="secondary"] {
-    background: rgba(255,255,255,0.07) !important;
-    border: 1px solid rgba(255,255,255,0.15) !important;
-    color: rgba(255,255,255,0.8) !important;
-  }
   
   .glass-card {
     background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px);
@@ -84,16 +64,6 @@ st.markdown("""
     color: rgba(255,255,255,0.55); font-size: 0.9rem; font-weight: 500;
     transition: all 0.2s;
   }
-  .nav-pill.active {
-    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,82,212,0.15));
-    color: #00D4FF; border-left: 3px solid #00D4FF;
-  }
-  .nav-pill:hover:not(.active) { background: rgba(255,255,255,0.04); color: #fff; }
-  
-  /* Separador limpio */
-  hr.sidebar-sep { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0.8rem 0; }
-  
-  /* Cerrar sesión */
   .logout-btn > div > button {
     background: rgba(239,68,68,0.1) !important;
     border: 1px solid rgba(239,68,68,0.3) !important;
@@ -111,6 +81,7 @@ if 'user_data'          not in st.session_state: st.session_state.user_data = No
 if 'prediction_data'    not in st.session_state: st.session_state.prediction_data = None
 if 'last_exercises_input' not in st.session_state: st.session_state.last_exercises_input = []
 if 'page'               not in st.session_state: st.session_state.page = "nueva_sesion"
+if 'session_date'       not in st.session_state: st.session_state.session_date = datetime.now().date()
 
 
 # ==========================================
@@ -130,8 +101,6 @@ catalog_df    = fetch_catalog()
 injuries_data = fetch_injuries()
 injuries_dict = {f"{i['zona']} + {i['lesion']}": i["id"] for i in injuries_data} if injuries_data else {}
 inj_options   = ["Ninguna"] + list(injuries_dict.keys())
-
-# Reverse lookup: ID → display name
 inj_id_to_name = {v: k for k, v in injuries_dict.items()}
 
 
@@ -187,17 +156,13 @@ else:
 
     # --- SIDEBAR NAVEGACIÓN PREMIUM ---
     with st.sidebar:
-        # Logo / header
         st.markdown(f"""
         <div style='padding:0 0.5rem 0.5rem;'>
           <div style='font-size:1.4rem; font-weight:800; color:#00D4FF;'>⚡ SmartTrainer<span style='color:#fff'> Pro</span></div>
           <div style='font-size:0.75rem; color:rgba(255,255,255,0.35); margin-top:2px;'>Plataforma de Rendimiento</div>
         </div>
         """, unsafe_allow_html=True)
-
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
-
-        # Usuario
         st.markdown(f"""
         <div style='padding:0.6rem 0.8rem; background:rgba(255,255,255,0.04); border-radius:10px; margin-bottom:0.5rem;'>
           <div style='font-size:0.78rem; color:rgba(255,255,255,0.4);'>Hola 👋</div>
@@ -205,48 +170,37 @@ else:
           <div style='font-size:0.75rem; color:#00D4FF; margin-top:2px;'>{u.get("experience_level","")}</div>
         </div>
         """, unsafe_allow_html=True)
-
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size:0.72rem; color:rgba(255,255,255,0.3); padding:0 0.5rem 0.4rem; letter-spacing:0.08em; text-transform:uppercase;'>Módulos</div>", unsafe_allow_html=True)
 
-        # Nav items
         pages = [
             ("nueva_sesion",  "🏋️", "Nueva Sesión"),
             ("dashboard",     "📊", "Dashboard Predictivo"),
             ("editar_perfil", "✏️", "Editar Perfil"),
         ]
-        if is_admin:
-            pages.append(("admin", "⚙️", "Panel de Administración"))
+        if is_admin: pages.append(("admin", "⚙️", "Panel de Administración"))
 
         for page_id, icon, label in pages:
-            active_class = "active" if st.session_state.page == page_id else ""
             if st.button(f"{icon}  {label}", key=f"nav_{page_id}", use_container_width=True):
                 st.session_state.page = page_id
                 st.rerun()
 
         st.markdown("<hr class='sidebar-sep'>", unsafe_allow_html=True)
-
-        # Cerrar sesión
-        st.markdown('<div class="logout-btn">', unsafe_allow_html=True)
-        if st.button("⏏  Cerrar Sesión", use_container_width=True):
+        if st.button("⏏  Cerrar Sesión", use_container_width=True, key="logout_btn"):
             st.session_state.logged_in = False
             st.session_state.user_data = None
             st.session_state.prediction_data = None
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # ==========================================
-    # PÁGINAS
-    # ==========================================
 
     # --- PÁGINA 1: NUEVA SESIÓN ---
     if st.session_state.page == "nueva_sesion":
         st.markdown("# CONSTRUYE TU <span style='color:#00D4FF'>SESIÓN</span>", unsafe_allow_html=True)
-        if catalog_df.empty:
-            st.error("❌ API de Catálogo no conectada.")
-            st.stop()
+        
+        c_top1, c_top2 = st.columns(2)
+        with c_top1:
+            st.session_state.session_date = st.date_input("Fecha de Entrenamiento", st.session_state.session_date)
+        with c_top2:
+            rest_h = st.slider("Horas Descanso Múscular Global", 0, 168, 48)
 
-        rest_h = st.slider("Horas Descanso Múscular Global", 0, 168, 48)
         selected_zones = st.multiselect("Zonas Objetivo", ["Superior", "Inferior", "Core"], default=["Inferior"])
 
         exercises_in_zones = catalog_df[catalog_df["body_part"].isin(selected_zones)].copy()
@@ -284,7 +238,9 @@ else:
                     if r.status_code == 200:
                         st.session_state.prediction_data       = r.json()
                         st.session_state.last_exercises_input  = exs_input
-                        st.success("🎯 Análisis listo. Ve al **Dashboard Predictivo** para revisarlo.")
+                        st.success("🎯 Análisis listo. Revisa tu Dashboard.")
+                        st.session_state.page = "dashboard"
+                        st.rerun()
                     else:
                         st.error(f"Error API: {r.text}")
                 except Exception as e:
@@ -303,16 +259,24 @@ else:
             lvl  = d.get("risk_level", "DESCONOCIDO")
             clr  = {"BAJO": "#21c55d", "MODERADO": "#fbbf24", "ALTO": "#f97316", "CRÍTICO": "#ef4444"}.get(lvl, "#00D4FF")
 
-            # -- Acciones de plataforma --
             with st.container(border=True):
-                st.markdown("### 💾 Acciones de Sesión")
+                st.markdown(f"### 📅 Sesión del {st.session_state.session_date}")
                 c_save, c_redo = st.columns(2)
 
                 with c_save:
+                    # Verificar si existe antes de guardar
+                    try:
+                        check_res = requests.get(f"{API_BASE}/workouts/check", 
+                                               params={"email": u["email"], "date": str(st.session_state.session_date)}).json()
+                        if check_res.get("exists"):
+                            st.warning("⚠️ Ya existe una sesión guardada para esta fecha.")
+                    except: pass
+                    
                     if st.button("✅ CONFIRMAR Y GUARDAR"):
                         ex_ids      = [ex["exercise_id"] for ex in st.session_state.last_exercises_input]
                         log_payload = {
                             "user_email":        u["email"],
+                            "session_date":      str(st.session_state.session_date),
                             "exercise_ids":      json.dumps(ex_ids),
                             "total_cns_fatigue":     d.get("estimated_cns_load", 0),
                             "total_periph_fatigue":  d.get("estimated_peripheral_load", 0),
@@ -320,18 +284,17 @@ else:
                         }
                         log_res = requests.post(f"{API_BASE}/workouts/log", json=log_payload)
                         if log_res.status_code == 200:
-                            st.success("¡Sesión guardada correctamente!")
+                            st.success("¡Sesión guardada/actualizada con éxito!")
                         else:
-                            st.error("Falló el guardado.")
+                            st.error(f"Falló el guardado: {log_res.text}")
 
                 with c_redo:
-                    if st.button("🔄 REHACER SESIÓN", help="Descarta este análisis y construye una nueva sesión"):
+                    if st.button("🔄 REHACER SESIÓN"):
                         st.session_state.prediction_data      = None
                         st.session_state.last_exercises_input = []
                         st.session_state.page = "nueva_sesion"
                         st.rerun()
 
-            # -- Fila 1: Gauge + Métricas --
             c1, c2 = st.columns([1, 1.2])
             with c1:
                 fig = go.Figure(go.Indicator(
@@ -350,7 +313,7 @@ else:
                         'threshold': {'line': {'color': clr, 'width': 3}, 'thickness': 0.75, 'value': prob}
                     }
                 ))
-                fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "#FFF"}, height=300, margin=dict(t=30, b=10))
+                fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "#FFF"}, height=330, margin=dict(t=30, b=10))
                 st.plotly_chart(fig, use_container_width=True)
 
             with c2:
@@ -361,20 +324,17 @@ else:
                 m1.metric("Sets Totales", d.get('total_sets', 0))
                 m2.metric("Reps Totales", d.get('total_reps', 0))
 
-                # Barras SNC / Periférico
                 st.markdown("#### ⚡ Carga Neuro-Muscular")
                 cns_val   = min(d.get("estimated_cns_load", 0), 100)
                 periph_val= min(d.get("estimated_peripheral_load", 0), 100)
 
                 fig_bars = go.Figure()
                 fig_bars.add_trace(go.Bar(
-                    x=[cns_val], y=["SNC"], orientation='h',
-                    marker_color='#ef4444', name='SNC',
+                    x=[cns_val], y=["SNC"], orientation='h', marker_color='#ef4444', name='SNC',
                     text=[f"{cns_val:.1f}%"], textposition='inside'
                 ))
                 fig_bars.add_trace(go.Bar(
-                    x=[periph_val], y=["Periférico"], orientation='h',
-                    marker_color='#3b82f6', name='Periférico',
+                    x=[periph_val], y=["Periférico"], orientation='h', marker_color='#3b82f6', name='Periférico',
                     text=[f"{periph_val:.1f}%"], textposition='inside'
                 ))
                 fig_bars.update_layout(
@@ -382,41 +342,43 @@ else:
                     font={'color': '#fff'}, barmode='group',
                     xaxis=dict(range=[0, 100], showgrid=False),
                     yaxis=dict(showgrid=False),
-                    showlegend=False, height=130,
-                    margin=dict(t=5, b=5, l=5, r=5)
+                    showlegend=False, height=140, margin=dict(t=5, b=5, l=5, r=5)
                 )
                 st.plotly_chart(fig_bars, use_container_width=True)
 
             st.divider()
 
-            # -- Fila 2: Radar de zonas + Alertas --
             c3, c4 = st.columns([1, 1])
             with c3:
                 alert_zones = d.get("alert_zones", [])
                 if alert_zones:
-                    zone_names  = [a["zone"] for a in alert_zones]
+                    # Limpiamos los nombres de zona para el radar
+                    zone_names  = [clean_zone_label(a["zone"]) for a in alert_zones]
                     zone_counts = [a["exercise_count"] for a in alert_zones]
+                    
+                    # Para que el radar se vea como un polígono, necesitamos al menos 3 puntos.
+                    # Si hay menos, completamos con ceros.
+                    if len(zone_names) < 3:
+                        zone_names += ["ESTADÍSTICA", "TÉCNICA", "RECUPERACIÓN"][:3-len(zone_names)]
+                        zone_counts += [0] * (3 - len(zone_counts))
+
                     # Cerrar el radar
-                    zone_names.append(zone_names[0])
-                    zone_counts.append(zone_counts[0])
+                    plot_names = zone_names + [zone_names[0]]
+                    plot_counts = zone_counts + [zone_counts[0]]
 
                     fig_radar = go.Figure(go.Scatterpolar(
-                        r=zone_counts, theta=zone_names,
-                        fill='toself',
-                        line_color='#00D4FF',
-                        fillcolor='rgba(0,212,255,0.18)',
-                        name='Estrés por Zona'
+                        r=plot_counts, theta=plot_names, fill='toself',
+                        line_color='#00D4FF', fillcolor='rgba(0,212,255,0.25)',
+                        name='Carga Articular'
                     ))
                     fig_radar.update_layout(
                         paper_bgcolor="rgba(0,0,0,0)",
                         polar=dict(
-                            bgcolor="rgba(0,0,0,0)",
-                            radialaxis=dict(visible=True, gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.4)'),
-                            angularaxis=dict(gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.6)')
+                            bgcolor="rgba(0,10,20,0.5)",
+                            radialaxis=dict(visible=True, gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.4)', range=[0, max(zone_counts)+1]),
+                            angularaxis=dict(gridcolor='rgba(255,255,255,0.1)', color='rgba(255,255,255,0.7)', font=dict(size=11))
                         ),
-                        showlegend=False,
-                        title={'text': 'Radar de Estrés por Zona', 'font': {'color': '#fff', 'size': 14}},
-                        font={'color': '#fff'}, height=310, margin=dict(t=50, b=20)
+                        showlegend=False, height=360, margin=dict(t=40, b=40)
                     )
                     st.plotly_chart(fig_radar, use_container_width=True)
                 else:
@@ -426,8 +388,9 @@ else:
                 st.markdown("### 📍 Alertas Anatómicas")
                 if alert_zones:
                     for a in alert_zones:
+                        z_clean = clean_zone_label(a["zone"])
                         st.markdown(
-                            f'<div class="elite-alert alert-warning"><b>{a["zone"]}</b> &nbsp;|&nbsp; {a["recommendation"]}</div>',
+                            f'<div class="elite-alert alert-warning"><b>{z_clean}</b> &nbsp;|&nbsp; {a["recommendation"]}</div>',
                             unsafe_allow_html=True
                         )
                 else:
@@ -439,48 +402,37 @@ else:
     # --- PÁGINA 3: EDITAR PERFIL ---
     elif st.session_state.page == "editar_perfil":
         st.markdown("# EDITAR <span style='color:#00D4FF'>PERFIL</span>", unsafe_allow_html=True)
-        st.caption("Actualiza tus datos. El correo electrónico no puede modificarse.")
+        st.caption("Actualiza tus datos físicos y nivel de experiencia.")
 
         with st.form("edit_profile_form"):
             c_a, c_b = st.columns(2)
             new_age    = c_a.number_input("Edad",     14, 80,  value=u.get("age", 25))
             new_weight = c_b.number_input("Peso (kg)",40.0, 200.0, value=float(u.get("weight", 75)))
             new_height = c_a.number_input("Altura (m)",1.0, 2.5, value=float(u.get("height", 1.75)))
-            new_exp    = c_b.selectbox("Nivel Experiencia",
-                ["Principiante", "Intermedio", "Avanzado"],
-                index=["Principiante", "Intermedio", "Avanzado"].index(u.get("experience_level", "Principiante"))
-            )
+            new_exp    = c_b.selectbox("Nivel Experiencia", ["Principiante", "Intermedio", "Avanzado"],
+                index=["Principiante", "Intermedio", "Avanzado"].index(u.get("experience_level", "Principiante")))
 
-            # Lesión actual
             current_inj_id   = u.get("injury_history_id")
             current_inj_name = inj_id_to_name.get(current_inj_id, "Ninguna")
-            try:
-                inj_current_idx = inj_options.index(current_inj_name)
-            except ValueError:
-                inj_current_idx = 0
+            try: inj_current_idx = inj_options.index(current_inj_name)
+            except: inj_current_idx = 0
             new_inj = st.selectbox("Historial Lesión Previa", inj_options, index=inj_current_idx)
 
-            st.markdown("")
-            if st.form_submit_button("💾 Guardar Cambios", use_container_width=True):
+            if st.form_submit_button("💾 Guardar Cambios"):
                 new_inj_id = injuries_dict.get(new_inj, None)
-                payload    = {
-                    "age": new_age, "weight": new_weight, "height": new_height,
-                    "experience_level": new_exp, "injury_history_id": new_inj_id
-                }
+                payload    = {"age": new_age, "weight": new_weight, "height": new_height,
+                              "experience_level": new_exp, "injury_history_id": new_inj_id}
                 res = requests.patch(f"{API_BASE}/users/{u['email']}", json=payload)
                 if res.status_code == 200:
-                    # Actualizar estado local del usuario
                     st.session_state.user_data.update(res.json())
-                    u = st.session_state.user_data
                     st.success("✅ Perfil actualizado correctamente.")
                 else:
                     st.error(f"Error al actualizar: {res.text}")
 
 
-    # --- PÁGINA 4: PANEL ADMINISTRADOR (solo admin) ---
+    # --- PÁGINA 4: PANEL ADMINISTRADOR ---
     elif st.session_state.page == "admin" and is_admin:
         st.markdown("# GESTIÓN DE <span style='color:#00D4FF'>CATÁLOGO</span>", unsafe_allow_html=True)
-
         t1, t2 = st.tabs(["Añadir Ejercicio", "Añadir Categoría Lesión"])
 
         with t1:
@@ -502,8 +454,8 @@ else:
                 i_zone = st.text_input("Zona / Articulación (ej. Manguito Rotador)")
                 i_les  = st.text_input("Nombre de la Lesión Común")
                 i_ej   = st.text_input("Ejercicios de Riesgo")
-                i_rpe  = st.text_input("Nivel Esfuerzo Peligroso (ej. 8-10)")
-                i_fatig= st.text_input("Fatiga Tolerada Max (ej. 80%)")
+                i_rpe  = st.text_input("Nivel Esfuerzo Peligroso")
+                i_fatig= st.text_input("Fatiga Tolerada Max")
                 i_tipo = st.selectbox("Tipo de Agotamiento", ["SNC", "Periférica", "Ambos"])
                 if st.form_submit_button("Guardar Tipo de Lesión"):
                     payload = {"zona_articulacion": i_zone, "lesion_comun": i_les,

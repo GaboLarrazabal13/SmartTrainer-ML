@@ -96,6 +96,7 @@ class UserUpdate(BaseModel):
 
 class WorkoutSessionCreate(BaseModel):
     user_email: str
+    session_date: str # ISO format YYYY-MM-DD
     exercise_ids: str # JSON array en string
     total_cns_fatigue: float
     total_periph_fatigue: float
